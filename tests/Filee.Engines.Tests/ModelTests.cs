@@ -283,6 +283,34 @@ public class ModelTests(EngineFixture fx) : IClassFixture<EngineFixture>
         Assert.Throws<InvalidDataException>(() => Load(buffer, Path.Combine(outside, buffer).Replace('\\', '/')));
     }
 
+    [Fact]
+    public void Gltf_reads_percent_encoded_buffer_and_picture_names()
+    {
+        var folder = fx.NewFolder();
+        var source = Directory.CreateDirectory(Path.Combine(folder, "source")).FullName;
+        var gltf = Path.Combine(source, "quad.gltf");
+        TexturedQuad(Matrix4x4.Identity).SaveGLTF(gltf, new WriteSettings { ImageWriting = ResourceWriteMode.SatelliteFile });
+        var json = JsonNode.Parse(File.ReadAllText(gltf))!;
+        var picture = (string)json["images"]![0]!["uri"]!;
+        var buffer = (string)json["buffers"]![0]!["uri"]!;
+        File.Move(Path.Combine(source, picture), Path.Combine(source, "paint image.png"));
+        File.Move(Path.Combine(source, buffer), Path.Combine(source, "mesh data.bin"));
+        json["images"]![0]!["uri"] = "paint%20image.png";
+        json["buffers"]![0]!["uri"] = "mesh%20data.bin";
+        File.WriteAllText(gltf, json.ToJsonString());
+
+        var model = ModelBuilders.Load(gltf, "gltf");
+        Assert.Equal(2, model.TriangleCount);
+        Assert.Equal(ModelBuilders.Checker(), model.MaterialOf(model.Parts.Single())!.BaseColorTexture!.Data);
+
+        // Decoding must still leave the existing folder boundary in force.
+        var outside = Directory.CreateDirectory(Path.Combine(folder, "outside")).FullName;
+        File.Move(Path.Combine(source, "paint image.png"), Path.Combine(outside, "paint image.png"));
+        json["images"]![0]!["uri"] = "..%2Foutside%2Fpaint%20image.png";
+        File.WriteAllText(gltf, json.ToJsonString());
+        Assert.Throws<InvalidDataException>(() => ModelBuilders.Load(gltf, "gltf"));
+    }
+
     private static ModelRoot TexturedQuad(Matrix4x4 transform)
     {
         var root = ModelRoot.CreateModel();

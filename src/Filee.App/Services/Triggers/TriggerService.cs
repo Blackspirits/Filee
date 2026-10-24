@@ -23,6 +23,8 @@ public sealed class TriggerService : IDisposable
     private EventLoopGlobalHook? _hook;
     private Thread? _hookThread;
     private readonly Func<EventLoopGlobalHook> _createHook;
+    private GnomePointerBridge? _gnomeBridge;
+    private GnomePointerInput? _gnomeInput;
     private HashSet<string> _excluded = new(StringComparer.OrdinalIgnoreCase);
 
     /// <summary>FILEE_TRACE_GESTURES=1 logs each mouse press and scope decision, to find why a gesture doesn't fire.</summary>
@@ -108,7 +110,10 @@ public sealed class TriggerService : IDisposable
     /// <summary>Last known cursor position (physical pixels).</summary>
     public (int X, int Y) LastCursor { get; private set; }
 
-    public bool IsRunning => _hook?.IsRunning == true;
+    public bool IsRunning => GnomeExtensionStatus == GnomeBridgeStatus.Connected || _hook?.IsRunning == true;
+
+    /// <summary>Where the GNOME Shell extension connection stands, or null when Filee doesn't use it.</summary>
+    internal GnomeBridgeStatus? GnomeExtensionStatus { get; private set; }
     public string? Error { get; private set; }
 
     /// <summary>
@@ -136,8 +141,24 @@ public sealed class TriggerService : IDisposable
 
     private Timer? _permissionWatch;
 
+    /// <summary>
+    /// macOS: whether to show the system's Accessibility alert: gestures wait for the permission, a drag gesture is
+    /// on, and Filee hasn't asked before. Once, not at every start (#316): after an update of the ad-hoc signed app,
+    /// the list can show Filee switched on while macOS still denies it, and the alert came back at every start. The
+    /// Home reminder stays until the permission is given and says to remove Filee from the list and add it again.
+    /// </summary>
+    internal static bool ShouldAskForPermission(AppSettings settings, bool needsPermission) =>
+        needsPermission && !settings.AccessibilityPromptShown
+        && settings.Triggers.Any(t => t.Enabled && t.Kind == TriggerKind.Drag);
+
     public void Start()
     {
+        if (OperatingSystem.IsLinux() && _platform is Filee.Platform.Linux.LinuxPlatformServices
+            && Filee.Platform.Linux.LinuxPlatformServices.UsesGnomePointerBridge)
+        {
+            StartGnomeBridge();
+            return;
+        }
         if (_hook is not null)
             return;
         if (!_platform.SupportsGlobalPointerGestures)
@@ -214,6 +235,53 @@ public sealed class TriggerService : IDisposable
         }
     }
 
+    private void StartGnomeBridge()
+    {
+        if (_gnomeBridge is not null)
+            return;
+        Error = null;
+        LinuxBackendMissing = false;
+        if (GnomePointerBridge.SocketPath is not { } path)
+        {
+            // A GNOME Wayland session always sets it, so this stays in the log; the page shows gestures as stopped.
+            _log.LogWarning("GNOME pointer integration needs XDG_RUNTIME_DIR; drag gestures stay off");
+            NotifyStatus();
+            return;
+        }
+        GnomeExtensionStatus = GnomeBridgeStatus.Waiting;
+        _gnomeInput = new GnomePointerInput(_detector);
+        GnomePointerBridge? bridge = null;
+        bridge = new GnomePointerBridge(path, state => Post(() =>
+        {
+            if (!ReferenceEquals(_gnomeBridge, bridge))
+                return;
+            LastCursor = (state.X, state.Y);
+            if (OperatingSystem.IsLinux() && _platform is Filee.Platform.Linux.LinuxPlatformServices linux)
+            {
+                linux.GnomePointerProcess = state.Process;
+                linux.GnomePointerIsDesktop = state.Desktop;
+            }
+            _gnomeInput?.Apply(state);
+        }), status => Post(() =>
+        {
+            if (!ReferenceEquals(_gnomeBridge, bridge) || status == GnomeExtensionStatus)
+                return;
+            if (GnomeExtensionStatus == GnomeBridgeStatus.Connected)
+                _gnomeInput?.Reset(LastCursor.X, LastCursor.Y);
+            GnomeExtensionStatus = status;
+            if (status == GnomeBridgeStatus.VersionMismatch)
+                _log.LogWarning("GNOME pointer extension speaks another protocol version than this Filee ({Version}); " +
+                    "sign out and in to load the installed extension", GnomePointerState.ProtocolVersion);
+            else
+                _log.LogInformation("GNOME pointer extension {State}",
+                    status == GnomeBridgeStatus.Connected ? "connected" : "disconnected; waiting to reconnect");
+            NotifyStatus();
+        }));
+        _gnomeBridge = bridge;
+        _log.LogInformation("Waiting for the Filee GNOME pointer extension (no input-device permission required)");
+        NotifyStatus();
+    }
+
     private void ReportFailure(Exception exception, string message)
     {
         // The raw libuiohook result goes to the log either way (the packaged-app smoke test looks for it).
@@ -255,12 +323,15 @@ public sealed class TriggerService : IDisposable
 
     internal bool InScope(TriggerGesture gesture, int x, int y)
     {
-        var process = _platform.ProcessNameAt(x, y);
+        // A keyboard shortcut goes to the window in front, wherever the pointer is (over the taskbar, say: #450).
+        // Mouse gestures go by the window under the pointer.
+        var front = gesture.Kind == TriggerKind.KeyChord ? _platform.GetForegroundWindow() : null;
+        var process = front is null ? _platform.ProcessNameAt(x, y) : front.ProcessName;
         if (Trace)
-            _log.LogInformation("Trace: {Gesture} at {X},{Y} over {Process}", gesture.Kind, x, y, process ?? "(none)");
+            _log.LogInformation("Trace: {Gesture} at {X},{Y} {Where} {Process}", gesture.Kind, x, y, front is null ? "over" : "in front:", process ?? "(none)");
         if (process is not null && (string.Equals(process, _ownProcess, StringComparison.OrdinalIgnoreCase) || _excluded.Contains(process)))
             return false;
-        return gesture.Scope == TriggerScope.Anywhere || _platform.IsFileManagerAt(x, y)
+        return gesture.Scope == TriggerScope.Anywhere || (front?.IsFileManager ?? _platform.IsFileManagerAt(x, y))
                // A picture or link dragged out of a web page opens the donut like a file.
                || gesture.Kind == TriggerKind.Drag && WebBrowsers.IsBrowser(process);
     }
@@ -327,8 +398,35 @@ public sealed class TriggerService : IDisposable
 
     public void Dispose()
     {
+        _gnomeBridge?.Dispose();
+        _gnomeBridge = null;
+        GnomeExtensionStatus = null;
+        _gnomeInput?.Reset(LastCursor.X, LastCursor.Y);
+        _gnomeInput = null;
         _permissionWatch?.Dispose();
         _permissionWatch = null;
+        try
+        {
+            // Stop the native hook and let its Run thread end before disposing (#358): SharpHook's Dispose closes the
+            // event queue first and stops the hook after, so a mouse move in between throws on the hook thread, and
+            // Windows then waits for that stuck low-level hook on every mouse move until the Join below gives up.
+            if (_hook is { IsDisposed: false, IsRunning: true })
+                _hook.Stop();
+        }
+        catch (HookException ex)
+        {
+            _log.LogWarning(ex, "Could not stop the global input hook");
+            Error = ex.Message;
+            NotifyStatus();
+            return; // Keep ownership: starting a second native hook would corrupt the first one.
+        }
+        if (_hookThread is { IsAlive: true } stopping && !stopping.Join(TimeSpan.FromSeconds(5)))
+        {
+            Error = "The previous global input hook did not finish stopping. Retry after it exits.";
+            _log.LogWarning("Global input hook shutdown timed out; keeping the previous hook to prevent overlap");
+            NotifyStatus();
+            return;
+        }
         try
         {
             _hook?.Dispose();

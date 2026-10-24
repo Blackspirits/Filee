@@ -16,6 +16,7 @@ using PdfSharp.Pdf.IO;
 
 namespace Filee.App.Tests;
 
+[Collection("MainWindow")]
 public class MergeOrderTests
 {
     private static void Click(Window window, string name)
@@ -126,6 +127,7 @@ public class MergeOrderTests
     [InlineData("pl")]
     [InlineData("hi")]
     [InlineData("ru")]
+    [InlineData("pt-PT")]
     [InlineData("pt-BR")]
     [InlineData("fr")]
     public void Chooser_fits_long_paths_at_its_minimum_width(string language)

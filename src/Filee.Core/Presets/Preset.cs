@@ -18,8 +18,8 @@ public enum PresetKind
     Group,
 
     /// <summary>
-    /// Opens its own window on the dropped files instead of converting them (the interactive Crop). Like a group,
-    /// never offered where a conversion is picked.
+    /// Opens its own window on the dropped files instead of converting them (the interactive Crop, Cut a clip; see
+    /// <see cref="Preset.Tool"/>). Like a group, never offered where a conversion is picked.
     /// </summary>
     Tool,
 }
@@ -99,6 +99,9 @@ public sealed class Preset
     /// <summary>Options used when a raster image is traced into vector shapes (PNG → SVG, DXF ...).</summary>
     public TracingOptions Trace { get; set; } = new();
 
+    /// <summary>Options used when a DWG or DXF is written.</summary>
+    public CadOptions Cad { get; set; } = new();
+
     /// <summary>Where and how output files are written.</summary>
     public OutputRule Output { get; set; } = new();
 
@@ -164,14 +167,73 @@ public sealed class Preset
         MediaOptions.LivePhotoTargets(Media.LivePhoto).Contains(TargetFormat)
         && Formats.FormatRegistry.FindById(sourceFormat)?.Category == Formats.FormatCategory.Video;
 
+    /// <summary>
+    /// True if converting a <paramref name="sourceFormat"/> file recognizes its text first (<see cref="PdfOptions.Ocr"/>):
+    /// the file is a PDF or a picture and the target one of <see cref="PdfOptions.OcrTargets"/>.
+    /// </summary>
+    public bool RecognizesTextOf(string sourceFormat) =>
+        Pdf.Ocr
+        && PdfOptions.OcrTargets.Contains(TargetFormat)
+        && (sourceFormat == "pdf" || Formats.FormatRegistry.FindById(sourceFormat)?.Category == Formats.FormatCategory.Image);
+
+    /// <summary>
+    /// True for "Merge videos", "Merge audio" and "Video from images": every dropped file goes, in order, into one
+    /// video or audio file (<see cref="MediaOptions.JoinIntoOne"/>, <see cref="MediaOptions.Slideshow"/>).
+    /// </summary>
+    [JsonIgnore]
+    public bool JoinsIntoOneMedia =>
+        (Media.JoinIntoOne || Media.Slideshow) && MediaOptions.JoinTargets.Contains(TargetFormat);
+
     /// <summary>True for a <see cref="PresetKind.Tool"/>.</summary>
     [JsonIgnore]
     public bool IsTool => Kind == PresetKind.Tool;
+
+    /// <summary><see cref="Tool"/> of the interactive crop (also a tool saved without one, from before clips).</summary>
+    public const string CropTool = "crop";
+
+    /// <summary><see cref="Tool"/> of "Cut a clip": a part of a video, chosen on a timeline.</summary>
+    public const string ClipTool = "clip";
+
+    /// <summary>
+    /// <see cref="PresetKind.Tool"/>: which window it opens, <see cref="CropTool"/> (or null, as saved before there were
+    /// other tools) or <see cref="ClipTool"/>. A tool this version doesn't know (from a newer Filee) opens nothing.
+    /// Ignored for other kinds.
+    /// </summary>
+    public string? Tool { get; set; }
+
+    /// <summary>True for the interactive crop.</summary>
+    [JsonIgnore]
+    public bool IsCropTool => IsTool && Tool is null or CropTool;
+
+    /// <summary>True for "Cut a clip".</summary>
+    [JsonIgnore]
+    public bool IsClipTool => IsTool && Tool == ClipTool;
+
+    /// <summary>
+    /// True if converting a <paramref name="sourceFormat"/> file cuts a clip of it (<see cref="MediaOptions.Clip"/>,
+    /// set by the clip window on the conversion it starts): the file is a video. Other files convert as usual.
+    /// </summary>
+    public bool CutsClipOf(string sourceFormat) =>
+        Media.Clip is { Parts.Count: > 0 } && Formats.FormatRegistry.FindById(sourceFormat)?.Category == Formats.FormatCategory.Video;
 
     /// <summary>Creates a new random preset id.</summary>
     public static string NewId() => Guid.NewGuid().ToString("N")[..12];
 
     /// <summary>Deep copy, used by editors so changes can be cancelled.</summary>
+    /// <summary>
+    /// This preset without its PDF password, for copies that leave the library (history, an export).
+    /// <paramref name="mark"/> records that it was taken out (<see cref="PdfOptions.PasswordLeftOut"/>).
+    /// </summary>
+    public Preset WithoutPassword(bool mark)
+    {
+        if (Pdf.Password.Length == 0)
+            return this;
+        var copy = Clone();
+        copy.Pdf.Password = "";
+        copy.Pdf.PasswordLeftOut = mark;
+        return copy;
+    }
+
     public Preset Clone() => new()
     {
         Id = Id,
@@ -184,8 +246,10 @@ public sealed class Preset
         Media = Media.Clone(),
         Archive = Archive.Clone(),
         Trace = Trace.Clone(),
+        Cad = Cad.Clone(),
         Output = Output.Clone(),
         Kind = Kind,
+        Tool = Tool,
         SubPresetIds = [.. SubPresetIds],
     };
 }
@@ -232,6 +296,15 @@ public enum TiffCompression
     Zip,
 }
 
+/// <summary>What a FITS astronomy picture becomes in a TIFF (<see cref="ImageOptions.FitsTiff"/>).</summary>
+public enum FitsTiffMode
+{
+    /// <summary>The data as it is, at the file's own bit depth: for further processing.</summary>
+    Linear,
+    /// <summary>Automatically stretched like a capture program's preview, at the file's own bit depth.</summary>
+    Stretched,
+}
+
 /// <summary>Raster image encoding options.</summary>
 public sealed class ImageOptions
 {
@@ -273,8 +346,26 @@ public sealed class ImageOptions
     /// </summary>
     public bool KeepColorProfile { get; set; } = true;
 
+    /// <summary>
+    /// "Compress image": PNG with zlib's best compression, and a JPEG never saved above the quality it had (a photo
+    /// saved at 75 would otherwise come back at the preset's quality, bigger and no better).
+    /// </summary>
+    public bool MaxCompression { get; set; }
+
+    /// <summary>
+    /// JPEG → JPEG at the quality the photo had (ImageMagick's estimate), not at <see cref="Quality"/>: "Remove
+    /// metadata" re-encodes the picture as little as it can. Other targets use <see cref="Quality"/>.
+    /// </summary>
+    public bool KeepSourceQuality { get; set; }
+
     /// <summary>Convert to grayscale.</summary>
     public bool Grayscale { get; set; }
+
+    /// <summary>
+    /// Crop away the fully transparent padding around a picture's visible pixels (PNGs exported with a margin, sprites,
+    /// icons). Pictures without transparency, and animations, stay as they are.
+    /// </summary>
+    public bool TrimTransparent { get; set; }
 
     /// <summary>
     /// Make a plain background (paper behind a signature or stamp, the backdrop of a logo) transparent. Targets without
@@ -304,6 +395,19 @@ public sealed class ImageOptions
 
     /// <summary>Use lossless WEBP encoding.</summary>
     public bool WebpLossless { get; set; }
+
+    /// <summary>
+    /// FITS → TIFF: the data as it is (the default) or stretched. Either way the TIFF follows the file's BITPIX: 8 and
+    /// 16 bits stay so, 32-bit integer and floating-point data become 32-bit floating point.
+    /// </summary>
+    [JsonConverter(typeof(LenientEnumJsonConverter<FitsTiffMode>))]
+    public FitsTiffMode FitsTiff { get; set; }
+
+    /// <summary>
+    /// FITS → any other picture (stretched automatically): a raw frame of a colour camera becomes colour with the Bayer
+    /// pattern in its header. Off keeps it mono. Mono cameras and three-plane colour files are not affected.
+    /// </summary>
+    public bool FitsDebayer { get; set; } = true;
 
     /// <summary>Icon sizes embedded in an ICO file.</summary>
     public List<int> IcoSizes { get; set; } = [256, 128, 64, 48, 32, 16];
@@ -361,6 +465,15 @@ public enum PdfCompression
     Print,
 }
 
+/// <summary>A lossless turn applied to every page of a PDF.</summary>
+public enum PdfRotation
+{
+    None,
+    Left90,
+    Right90,
+    Rotate180,
+}
+
 /// <summary>PDF related options.</summary>
 public sealed class PdfOptions
 {
@@ -380,6 +493,10 @@ public sealed class PdfOptions
 
     /// <summary>For PDF → PDF: write every page as its own file.</summary>
     public bool SplitPages { get; set; }
+
+    /// <summary>For PDF → PDF: rotate every selected page without rendering it.</summary>
+    [JsonConverter(typeof(LenientEnumJsonConverter<PdfRotation>))]
+    public PdfRotation Rotation { get; set; }
 
     /// <summary>For PDF → image: stack the pages into one tall image instead of one image per page.</summary>
     public bool CombinePages { get; set; }
@@ -404,10 +521,51 @@ public sealed class PdfOptions
     public PdfCompression Compression { get; set; }
 
     /// <summary>
+    /// For PDF → PDF: drop the document information (title, author, dates, creator) and every XMP packet. Pages,
+    /// links, bookmarks and form fields stay as they are.
+    /// </summary>
+    public bool RemoveMetadata { get; set; }
+
+    /// <summary>
     /// With <see cref="Compression"/>: also let Ghostscript rewrite the PDF when it is installed, and keep whichever
     /// result is smaller. Off by default: it rewrites the whole file (fonts, structure), not only the pictures.
     /// </summary>
     public bool CompressWithGhostscript { get; set; }
+
+    /// <summary>Text written large and faint across every page of a PDF ("DRAFT", "CONFIDENTIAL"); empty for none.</summary>
+    public string Watermark { get; set; } = "";
+
+    /// <summary>"1 / 5" at the bottom of every page of a PDF.</summary>
+    public bool PageNumbers { get; set; }
+
+    /// <summary>
+    /// A password the PDF opens with (AES-256); empty for none. Saved with the preset in the settings file, like the
+    /// rest of it.
+    /// </summary>
+    public string Password { get; set; } = "";
+
+    /// <summary>
+    /// The <see cref="Password"/> was left out of this copy (the one history keeps to convert failed files again): a
+    /// retry takes it from the preset again, and fails rather than write a PDF without it.
+    /// </summary>
+    public bool PasswordLeftOut { get; set; }
+
+    /// <summary>A PDF this preset writes gets a watermark, page numbers or a password (<see cref="Conversion.IPdfFinisher"/>).</summary>
+    [JsonIgnore]
+    public bool FinishesPdf => !string.IsNullOrWhiteSpace(Watermark) || PageNumbers || Password.Length > 0 || PasswordLeftOut;
+
+    /// <summary>Formats text read from scans can go into (<see cref="Ocr"/>): those Filee writes from a PDF's text itself.</summary>
+    public static readonly IReadOnlyList<string> OcrTargets = ["pdf", "docx", "txt", "md", "hwpx"];
+
+    /// <summary>
+    /// Recognize the text of scanned pages and pictures with Tesseract (<see cref="Preset.RecognizesTextOf"/>): a PDF
+    /// gets a searchable text layer, a DOCX, TXT, Markdown or HWPX gets the text. Pages that already have text stay as
+    /// they are.
+    /// </summary>
+    public bool Ocr { get; set; }
+
+    /// <summary>With <see cref="Ocr"/>: the language of the text, as a Tesseract code (<c>eng</c>, <c>deu</c>, <c>chi_sim</c>).</summary>
+    public string OcrLanguage { get; set; } = "eng";
 
     public PdfOptions Clone() => (PdfOptions)MemberwiseClone();
 }
@@ -540,13 +698,82 @@ public sealed class MediaOptions
     public int FrameInterval { get; set; } = 1;
 
     /// <summary>
+    /// "Cut a clip": cut exactly at the chosen frames by encoding the clip again (with <see cref="Quality"/>,
+    /// <see cref="MaxHeight"/>, <see cref="VideoCodec"/>, …). Off by default: the streams are copied as they are, which
+    /// takes a moment and loses nothing, but the clip starts at the key frame before the chosen start.
+    /// </summary>
+    public bool ExactCut { get; set; }
+
+    /// <summary>
+    /// A clip of a video (<see cref="Preset.CutsClipOf"/>): its parts, their volume and speed, and its fades. Set by the
+    /// clip window on the conversion it starts, never on a saved preset.
+    /// </summary>
+    public ClipEdit? Clip { get; set; }
+
+    /// <summary>
     /// Most pictures one video may become (<see cref="SaveEveryFrame"/>): about an hour at 30 fps, already more than
     /// anyone looks through. A longer video needs a larger <see cref="FrameInterval"/>.
     /// </summary>
     public const long MaxFrames = 100_000;
 
+    /// <summary>Targets the dropped files can be joined into (<see cref="JoinIntoOne"/>, <see cref="Slideshow"/>).</summary>
+    public static readonly IReadOnlyList<string> JoinTargets = ["mp4", "m4a"];
 
-    public MediaOptions Clone() => (MediaOptions)MemberwiseClone();
+    /// <summary>
+    /// MP4 or M4A: every dropped video (or audio file) goes, in order and without gaps, into one file named after the
+    /// first. Clips that share codecs and picture size are copied; others are encoded to match the first.
+    /// </summary>
+    public bool JoinIntoOne { get; set; }
+
+    /// <summary>
+    /// MP4: the dropped pictures become one 1080p video, each shown for <see cref="SlideSeconds"/>, fitted in with
+    /// black bars.
+    /// </summary>
+    public bool Slideshow { get; set; }
+
+    /// <summary>
+    /// Most pictures one <see cref="Slideshow"/> takes: every picture is an FFmpeg input, held while the video is encoded.
+    /// </summary>
+    public const int MaxSlides = 300;
+
+    /// <summary>Shortest and longest time one picture of a <see cref="Slideshow"/> is shown, in seconds.</summary>
+    public const double MinSlideSeconds = 0.5, MaxSlideSeconds = 60;
+
+    /// <summary>With <see cref="Slideshow"/>: how long each picture is shown, in seconds.</summary>
+    public double SlideSeconds { get; set; } = 3;
+
+    /// <summary>With <see cref="Slideshow"/>: fade from one picture into the next instead of cutting.</summary>
+    public bool Crossfade { get; set; } = true;
+
+    /// <summary>With <see cref="Crossfade"/>: how long a fade takes, in seconds (at most half a picture's time).</summary>
+    public const double CrossfadeSeconds = 1;
+
+    /// <summary>
+    /// Audio target: copy the sound as it is when the target takes its codec (AAC from a phone video into M4A), with
+    /// no bitrate, channel or Small quality asking for an encode. Off: always encoded, as before the option existed.
+    /// </summary>
+    public bool CopyAudioWhenPossible { get; set; }
+
+    /// <summary>
+    /// Video and audio: drop the tags (title, artist, dates, location, camera, encoder) and chapters, copying the
+    /// streams as they are. Only when the file keeps its format.
+    /// </summary>
+    public bool RemoveMetadata { get; set; }
+
+    /// <summary><see cref="SlideSeconds"/> within its limits (a hand-edited preset file may hold anything).</summary>
+    [JsonIgnore]
+    public double SlideDuration => double.IsFinite(SlideSeconds) ? Math.Clamp(SlideSeconds, MinSlideSeconds, MaxSlideSeconds) : 3;
+
+    /// <summary>The fade between two pictures in seconds: 0 without <see cref="Crossfade"/>, never over half a picture's time.</summary>
+    [JsonIgnore]
+    public double FadeDuration => Crossfade ? Math.Min(CrossfadeSeconds, SlideDuration / 2) : 0;
+
+    public MediaOptions Clone()
+    {
+        var copy = (MediaOptions)MemberwiseClone();
+        copy.Clip = Clip?.Clone();
+        return copy;
+    }
 }
 
 /// <summary>The kind of moving photo a video becomes (<see cref="MediaOptions.LivePhoto"/>).</summary>
@@ -681,3 +908,29 @@ public sealed class TracingOptions
 
     public TracingOptions Clone() => (TracingOptions)MemberwiseClone();
 }
+
+/// <summary>The AutoCAD version a DWG or DXF is written in (#489).</summary>
+public enum CadVersion
+{
+    /// <summary>AutoCAD 2018 (AC1032): still current in AutoCAD 2026.</summary>
+    AutoCad2018,
+    AutoCad2013,
+    AutoCad2010,
+    /// <summary>A DWG is written as 2004, which AutoCAD 2007 opens: ACadSharp can't write a 2007 DWG.</summary>
+    AutoCad2007,
+    AutoCad2004,
+    AutoCad2000,
+    /// <summary>The version of the drawing converted, within what can be written (2000–2018).</summary>
+    SameAsSource,
+}
+
+/// <summary>Options for writing DWG and DXF.</summary>
+public sealed class CadOptions
+{
+    /// <summary>A version from a newer Filee reads as <see cref="CadVersion.AutoCad2018"/>.</summary>
+    [JsonConverter(typeof(LenientEnumJsonConverter<CadVersion>))]
+    public CadVersion Version { get; set; }
+
+    public CadOptions Clone() => (CadOptions)MemberwiseClone();
+}
+

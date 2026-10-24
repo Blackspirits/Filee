@@ -27,7 +27,7 @@ public class CropOverlayTests
     public static TheoryData<string, bool> Looks => new()
     {
         { "en", false }, { "en", true }, { "ko", false }, { "ko", true }, { "ru", false }, { "hi", true }, { "ar", false }, { "ar", true },
-        { "pt-BR", false },
+        { "pt-PT", false }, { "pt-PT", true }, { "pt-BR", false }, { "pt-BR", true },
         { "fr", false },
     };
 
@@ -109,6 +109,32 @@ public class CropOverlayTests
             Assert.Equal($"{size.Width} × {size.Height} px", vm.DimensionsText);
             Save(window, "crop-drag-en.png");
             window.MouseUp(corner, MouseButton.Left);
+        });
+    }
+
+    [AvaloniaFact]
+    public void A_frame_moved_near_the_middle_snaps_to_the_centre_lines()
+    {
+        WithOverlay("en", false, ["harbour.jpg"], (window, vm, _suffix) =>
+        {
+            var canvas = window.CropCanvas;
+            canvas.NormalizedCropRect = new Rect(0.1, 0.1, 0.5, 0.5); // centre at 35 %, 35 %
+            Settle(window);
+            var image = canvas.CalculateImageBounds();
+            var origin = canvas.TranslatePoint(default, window)!.Value;
+            var start = canvas.GetScreenCropRect(image).Center + (Vector)origin;
+            // To 3 screen pixels short of the picture's centre on both axes: inside the snap distance.
+            var target = image.Center + (Vector)origin - new Vector(3, 3);
+            window.MouseDown(start, MouseButton.Left);
+            window.MouseMove(start + (target - start) / 2);
+            window.MouseMove(target);
+            Pump();
+            Save(window, "crop-snap-en.png");
+            window.MouseUp(target, MouseButton.Left);
+
+            var frame = canvas.NormalizedCropRect;
+            Assert.Equal(0.5, frame.X + frame.Width / 2, 3);
+            Assert.Equal(0.5, frame.Y + frame.Height / 2, 3);
         });
     }
 

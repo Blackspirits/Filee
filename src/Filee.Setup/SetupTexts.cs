@@ -83,6 +83,8 @@ public sealed class SetupTexts
             if (normalized.Equals(code, StringComparison.OrdinalIgnoreCase))
                 return code;
         }
+        if (Filee.App.Services.AppLanguages.PortugueseVariant(normalized) is { } portuguese)
+            return portuguese;
         // "zh-Hant-HK" / "zh-HK" → zh-TW; the primary-language fallback below gives the other Chinese names zh-CN.
         if (Filee.App.Services.AppLanguages.IsTraditionalChinese(normalized))
             return "zh-TW";

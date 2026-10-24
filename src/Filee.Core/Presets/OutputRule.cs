@@ -85,6 +85,20 @@ public sealed class OutputRule
     /// </summary>
     public bool ZipResult { get; set; }
 
+    /// <summary>
+    /// "Compress" presets: when a file that keeps its format doesn't get smaller, the output is a copy of the source
+    /// instead, with a notice. A result in another format is always kept.
+    /// </summary>
+    public bool OnlyIfSmaller { get; set; }
+
+    /// <summary>
+    /// The result takes the original's place and the original goes to the Recycle Bin / Trash (#332): only when the
+    /// result has the source's format, only after it is complete, never for watch folders or files from a browser.
+    /// When the original can't be moved there (a network drive, a file still open elsewhere, no Trash), it stays and
+    /// the result is saved as usual, with a note saying why.
+    /// </summary>
+    public bool ReplaceOriginal { get; set; }
+
     public OutputRule Clone()
     {
         var clone = (OutputRule)MemberwiseClone();

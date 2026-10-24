@@ -85,7 +85,7 @@
                       <Border Classes="badge" MinWidth="120" Padding="12,6">
                         <TextBlock Text="{Binding KeyText}" FontWeight="SemiBold" />
                       </Border>
-                      <ToggleButton IsChecked="{Binding IsRecording}" KeyDown="OnRecorderKeyDown">
+                      <ToggleButton Classes="recorder" IsChecked="{Binding IsRecording}">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                           <PathIcon Width="12" Height="12" Data="{StaticResource Icon.Record}" Foreground="{DynamicResource DangerBrush}" />
                           <TextBlock Text="{Binding RecordLabel}" />
@@ -129,7 +129,7 @@
           <Border Classes="badge" MinWidth="120" Padding="12,6">
             <TextBlock Text="{Binding KeyText}" FontWeight="SemiBold" />
           </Border>
-          <ToggleButton x:Name="FlipRecorder" IsChecked="{Binding IsRecording}" KeyDown="OnFlipRecorderKeyDown">
+          <ToggleButton x:Name="FlipRecorder" IsChecked="{Binding IsRecording}">
             <StackPanel Orientation="Horizontal" Spacing="6">
               <PathIcon Width="12" Height="12" Data="{StaticResource Icon.Record}" Foreground="{DynamicResource DangerBrush}" />
               <TextBlock Text="{DynamicResource triggers.record}" />

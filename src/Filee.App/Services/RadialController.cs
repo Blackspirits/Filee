@@ -220,6 +220,17 @@ public sealed class RadialController(
         var window = new RadialWindow { DataContext = viewModel };
         var donut = window.DonutControl;
 
+        // On native Wayland, hiding an xdg_toplevel surface causes the compositor to destroy its surface,
+        // and re-showing raises an InvalidOperationException. Track Closed to re-create on the next gesture.
+        if (Filee.Platform.Linux.WaylandSupport.NativeWaylandRequested)
+        {
+            window.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(_window, window))
+                    _window = null;
+            };
+        }
+
         window.DragEntered += () => _dragReachedDonut = true;
         // Tells "the drag reached the donut but brought no files" apart, with what it brought (file promises, say).
         window.DragWithoutFiles += formats =>
@@ -321,13 +332,14 @@ public sealed class RadialController(
             var near = _window?.Position;
             Close(animate: false);
             if (web is null)
-                windows.ShowCropOverlay(sources, preset, near);
+                windows.ShowTool(sources, preset, near);
             else
                 _ = ShowToolForBrowserFilesAsync(web, preset, near);
             return;
         }
 
-        if (preset.TargetFormat == "pdf" && preset.Pdf.MergeIntoSingle && sources.Count > 1)
+        // Merged PDFs, joined clips and slideshows follow the order the user picks.
+        if ((preset.TargetFormat == "pdf" && preset.Pdf.MergeIntoSingle || preset.JoinsIntoOneMedia) && sources.Count > 1)
         {
             Close(animate: false);
             _ = MergeInOrderAsync(sources, preset.Clone(), web);
@@ -367,13 +379,13 @@ public sealed class RadialController(
         }
     }
 
-    /// <summary>The crop tool on files from a browser: they are saved first, then it opens on them.</summary>
+    /// <summary>A tool (crop, clip) on files from a browser: they are saved first, then it opens on them.</summary>
     private async Task ShowToolForBrowserFilesAsync(WebDrop web, Filee.Core.Presets.Preset preset, PixelPoint? near)
     {
         var files = await conversions.SaveBrowserFilesAsync(web, (placeholder, ex) =>
             log.LogWarning(ex, "Saving {File} from a browser for {Preset} failed", Path.GetFileName(placeholder), preset.Id));
         if (files.Count > 0)
-            windows.ShowCropOverlay(files, preset, near);
+            windows.ShowTool(files, preset, near);
     }
 
     /// <summary>
@@ -485,7 +497,13 @@ public sealed class RadialController(
     /// Has the global hook report the flip key and the wheel only while a drag-mode donut shows files that could flip;
     /// they are left alone otherwise (see <see cref="TriggerService.WatchFlipKey"/>).
     /// </summary>
-    private void WatchFlipKey() => triggers.WatchFlipKey = FlipsFromHook;
+    private void WatchFlipKey()
+    {
+        triggers.WatchFlipKey = FlipsFromHook;
+        // One source per press: the hook in drag mode, the window in click mode (#504).
+        if (_window is not null)
+            _window.DonutControl.FlipKeyFromHook = FlipsFromHook;
+    }
 
     /// <summary>A drag-mode donut shows files and nothing was dropped yet: the hook's flip key and wheel flip it.</summary>
     private bool FlipsFromHook => _visible && !_dropped && !viewModel.IsClickMode && viewModel.HasFiles;

@@ -231,6 +231,8 @@ public sealed partial class DonutMenu : Control
     /// <summary>Shrinks the donut back into the centre, then calls <paramref name="done"/>.</summary>
     public void PlayCloseAnimation(Action done)
     {
+        if (IsFlipping)
+            FinishFlip();
         if (!Motion.Enabled || Count == 0)
         {
             done();
@@ -450,8 +452,9 @@ public sealed partial class DonutMenu : Control
             _keyboardHold = false;
         }
         _lastPointer = p;
-
         var hit = HitTest(p);
+        if (IsFlipping)
+            PointAtAngle(DonutGeometry.AngleOf(Center, p), hit.Kind is DonutHitKind.Segment or DonutHitKind.SubSegment);
         TrackGroups(hit, p);
         SetHover(hit.Kind switch
         {
@@ -816,19 +819,15 @@ public sealed partial class DonutMenu : Control
             return;
         }
 
-        // A flip turns the ring (and its shadow and a group's ring) about the vertical axis; the hub stays.
-        var flip = FlipTransform(center);
-        using (context.PushTransform(flip))
-            RenderRing(context, center, r1, r2, n, typeface, typefaceRegular);
+        RenderRing(context, center, r1, r2, n, typeface, typefaceRegular);
 
         var reaching = _expanded >= 0 ? _expanded : _pendingGroup;
         if (!IsEditMode && reaching >= 0 && reaching < n && Items![reaching].Children is { Count: > 0 } reachable)
             DrawHitBackdrop(context, center, reaching, reachable.Count);
         if (!IsEditMode && _shownExpanded >= 0 && _shownExpanded < n && _expand.Value > 0.01)
-        {
-            using (context.PushTransform(flip))
-                DrawSubRing(context, center, typeface, typefaceRegular);
-        }
+            DrawSubRing(context, center, typeface, typefaceRegular);
+        if (HasOldGroupRing)
+            DrawOldSubRing(context, center, typeface, typefaceRegular);
 
         DrawCenter(context, center, r1, typeface, typefaceRegular);
 
@@ -851,6 +850,8 @@ public sealed partial class DonutMenu : Control
 
         for (var i = 0; i < n; i++)
         {
+            if (IsFlipping && SliceFlipWidth(false, i) == 0)
+                continue;
             var item = Items![i];
             var open = i < _open.Length ? _open[i] : 1;
             if (open <= 0.001)
@@ -871,7 +872,8 @@ public sealed partial class DonutMenu : Control
                 Matrix.CreateTranslation(-center.X, -center.Y) *
                 Matrix.CreateRotation(rotate) *
                 Matrix.CreateScale(scale * (1 + hover * 0.025), scale * (1 + hover * 0.025)) *
-                Matrix.CreateTranslation(center.X + offset.X, center.Y + offset.Y);
+                Matrix.CreateTranslation(center.X + offset.X, center.Y + offset.Y) *
+                SliceFlipTransform(false, i);
 
             using (context.PushTransform(transform))
             using (context.PushOpacity(Math.Clamp(open, 0, 1) * (i == _dimmedIndex ? 0.3 : 1)))
@@ -889,6 +891,32 @@ public sealed partial class DonutMenu : Control
                     r2 - r1 - 16, typeface, typefaceRegular, hot);
             }
         }
+
+        if (_oldFace is { } old)
+            for (var i = 0; i < old.Length; i++)
+            {
+                var slice = old[i];
+                if (SliceFlipWidth(true, i) == 0 || slice.Open <= 0.001)
+                    continue;
+                var offset = DonutGeometry.PointAt(new Point(0, 0), slice.Hover * PopOut, slice.Mid);
+                var scale = 0.55 + 0.45 * slice.Open;
+                var rotate = (1 - Math.Min(slice.Open, 1)) * -0.35;
+                var transform = Matrix.CreateTranslation(-center.X, -center.Y) * Matrix.CreateRotation(rotate) *
+                                Matrix.CreateScale(scale * (1 + slice.Hover * 0.025), scale * (1 + slice.Hover * 0.025)) *
+                                Matrix.CreateTranslation(center.X + offset.X, center.Y + offset.Y) *
+                                SliceFlipTransform(true, i);
+                using (context.PushTransform(transform))
+                using (context.PushOpacity(Math.Clamp(slice.Open, 0, 1) * (slice.Dimmed ? 0.3 : 1)))
+                {
+                    var wedge = CreateWedge(center, r1, r2, slice.Mid, slice.Span);
+                    context.DrawGeometry(WithOpacity(SliceBrush, SliceOpacity * (slice.Item.IsEnabled ? 1 : 0.55)), BorderPen(), wedge);
+                    if (slice.Emphasis > 0.01 && slice.Item.IsEnabled)
+                        context.DrawGeometry(WithOpacity(AccentBrush, 0.82 * Math.Clamp(slice.Emphasis, 0, 1)), null, wedge);
+                    DrawLabel(context, slice.Item, center, (r1 + r2) / 2, slice.Mid,
+                        slice.Span * (r1 + r2) / 2 - 10, r2 - r1 - 16, typeface, typefaceRegular,
+                        slice.Hot && slice.Item.IsEnabled);
+                }
+            }
 
         if (IsEditMode && _previewSpan.Value > 0.01)
             DrawPreview(context, center, r1, r2, typeface, typefaceRegular);
@@ -909,7 +937,7 @@ public sealed partial class DonutMenu : Control
             },
         };
         var opening = _open.Length == 0 ? 1 : Math.Clamp(_open.Average(), 0, 1);
-        using (context.PushOpacity(opening))
+        using (context.PushOpacity(opening * ShadowCoverage))
             context.DrawEllipse(brush, null, new Point(center.X, center.Y + 4), shadowRadius, shadowRadius);
     }
 

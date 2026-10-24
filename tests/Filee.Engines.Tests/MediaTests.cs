@@ -23,6 +23,17 @@ public sealed class FfmpegCollection;
 [Collection(nameof(FfmpegCollection))]
 public class MediaTests(EngineFixture fx) : IClassFixture<EngineFixture>
 {
+    [Fact]
+    public void Cri_usm_game_videos_go_to_mp4_through_ffmpeg()
+    {
+        // #485: read only, through FFmpeg's usm demuxer; never a step towards something else.
+        SkipUnlessInstalled();
+        var route = fx.Catalog.CreatePlanner().Plan("usm", "mp4");
+        Assert.NotNull(route);
+        Assert.Equal("ffmpeg", Assert.Single(route.Steps).Converter.Id);
+        Assert.Null(fx.Catalog.CreatePlanner().Plan("mp4", "usm"));
+    }
+
     private static readonly (string Ffmpeg, string Ffprobe)? Tools = FfmpegConverter.Locate();
 
     private static void SkipUnlessInstalled() =>

@@ -88,9 +88,42 @@ public sealed class PresetAvailability
     private PresetJudgement Evaluate(Preset preset, IReadOnlyList<FileFormat> formats,
         Func<RoutePlanner> installedPlanner, Func<Func<RoutePlanner, bool>, EnginePackageState?> packageEnabling)
     {
+        if (preset.IsClipTool)
+        {
+            // Any video among the files: the others are left out when the clip window opens.
+            var videos = formats.Where(f => f.Category == FormatCategory.Video).ToList();
+            if (videos.Count == 0)
+                return new(PresetUse.Unusable, _loc["error.unsupported_source"]);
+            bool CanCut(RoutePlanner planner) => videos.Any(f => ClipTool.CanCut(f.Id, planner));
+            if (CanCut(installedPlanner()))
+                return new(PresetUse.Usable, null);
+            return packageEnabling(CanCut) is { } needed
+                ? new(PresetUse.NeedsPackage, _loc.Format("engine.reason.needs_package", needed.Name))
+                : new(PresetUse.Unusable, _loc["error.no_route"]);
+        }
+
         if (preset.IsTool)
         {
-            if (formats.Count > 0 && formats.All(f => WritableSingleFrameRasterFormats.Contains(f.Id)))
+            if (preset.Id == "tool-sheet-studio")
+            {
+                if (formats.Count > 0 && formats.All(format => format.Id == "xlsx"))
+                {
+                    var libreOffice = _catalog.All.FirstOrDefault(converter => converter.Id == "libreoffice");
+                    if (libreOffice?.GetStatus().IsAvailable == true)
+                        return new(PresetUse.Usable, null);
+                    var libreOfficePackage = _packages.FirstOrDefault(item => !item.IsInstalled
+                        && item.Package.ConverterIds.Contains("libreoffice"));
+                    return libreOfficePackage is not null
+                        ? new(PresetUse.NeedsPackage, _loc.Format("engine.reason.needs_package", libreOfficePackage.Name))
+                        : new(PresetUse.Unusable, _loc["error.no_route"]);
+                }
+                return new(PresetUse.Unusable, _loc["error.unsupported_source"]);
+            }
+            if (preset.Id.StartsWith("tool-pdf-", StringComparison.Ordinal))
+                return formats.Count > 0 && formats.All(f => f.Id == "pdf")
+                    ? new(PresetUse.Usable, null)
+                    : new(PresetUse.Unusable, _loc["error.unsupported_source"]);
+            if (preset.IsCropTool && formats.Count > 0 && formats.All(f => WritableSingleFrameRasterFormats.Contains(f.Id)))
                 return new(PresetUse.Usable, null);
             return new(PresetUse.Unusable, _loc["error.unsupported_source"]);
         }
@@ -106,6 +139,27 @@ public sealed class PresetAvailability
         if (formats.Count == 0)
             return new(PresetUse.Unusable, _loc["error.unsupported_source"]);
 
+        // "Trim transparent borders" on JPG and other formats without transparency would only re-encode them.
+        if (preset.Image.TrimTransparent
+            && formats.All(f => !Filee.Engines.Magick.ImageEncoder.HoldsAlpha(preset.TargetFormat == BuiltInData.SameAsSource ? f.Id : preset.TargetFormat)))
+            return new(PresetUse.Unusable, _loc["error.no_transparency"]);
+        // "Merge videos" / "Merge audio" / "Video from images": FFmpeg joins the files, so a route into the target (or,
+        // for pictures, into PNG and from PNG into a video) says whether it is installed.
+        if (preset.JoinsIntoOneMedia)
+        {
+            var target = preset.TargetFormat;
+            bool Joinable(RoutePlanner planner) => formats.Any(f => preset.Media.Slideshow
+                ? f.Category is FormatCategory.Image or FormatCategory.Vector
+                  && (f.Id == "png" || planner.CanConvert(f.Id, "png")) && planner.CanConvert("png", target)
+                : (f.Category == FormatCategory.Video || f.Category == FormatCategory.Audio && target == "m4a")
+                  && planner.CanConvert(f.Id, target));
+            if (Joinable(installedPlanner()))
+                return new(PresetUse.Usable, null);
+            return packageEnabling(Joinable) is { } joiner
+                ? new(PresetUse.NeedsPackage, _loc.Format("engine.reason.needs_package", joiner.Name))
+                : new(PresetUse.Unusable, _loc["error.no_route"]);
+        }
+
         var merge = preset.Pdf.MergeIntoSingle && preset.TargetFormat == "pdf";
         var turns = preset.Image.TurnsOrMirrors;
         string TargetFor(FileFormat f) => preset.TargetFormat == BuiltInData.SameAsSource ? f.Id : preset.TargetFormat;
@@ -113,15 +167,16 @@ public sealed class PresetAvailability
         bool Possible(RoutePlanner planner) => formats.Any(f =>
         {
             var target = TargetFor(f);
-            if (merge && f.Id == "pdf" && !turns)
+            if (merge && f.Id == "pdf" && !turns && !preset.RecognizesTextOf(f.Id))
                 return true; // merged as it is
             var frames = preset.SavesFramesOf(f.Id);
             var motion = preset.ExtractsMotionOf(f.Id);
             var live = preset.MakesLivePhotoOf(f.Id);
+            var ocr = preset.RecognizesTextOf(f.Id);
             if (!turns)
-                return planner.CanConvert(f.Id, target, frames, motionPhoto: motion, livePhoto: live);
+                return planner.CanConvert(f.Id, target, frames, motionPhoto: motion, livePhoto: live, ocr: ocr);
             // Rotate / flip: a route only counts when an engine on it turns images (not a PDF or a video copied).
-            if (planner.Plan(f.Id, target, frames, motionPhoto: motion, livePhoto: live) is not { } route)
+            if (planner.Plan(f.Id, target, frames, motionPhoto: motion, livePhoto: live, ocr: ocr) is not { } route)
                 return false;
             if (route.FirstTransformStep() >= 0)
                 return true;
