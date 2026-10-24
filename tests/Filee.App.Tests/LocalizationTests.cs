@@ -43,6 +43,17 @@ public partial class LocalizationTests
 
     [Theory]
     [MemberData(nameof(Languages))]
+    public void Catalogs_have_no_duplicate_keys_or_empty_translations(string code)
+    {
+        using var json = JsonDocument.Parse(File.ReadAllText(Path.Combine(I18nDirectory, code + ".json")));
+        var entries = json.RootElement.EnumerateObject().ToList();
+        Assert.Equal(entries.Count, entries.Select(e => e.Name).Distinct().Count());
+        Assert.All(entries, e => Assert.False(string.IsNullOrWhiteSpace(e.Value.GetString()), $"{code}:{e.Name}"));
+    }
+
+
+    [Theory]
+    [MemberData(nameof(Languages))]
     public void Every_language_has_exactly_the_english_keys(string code)
     {
         var english = Load("en").Keys.ToHashSet();
@@ -50,6 +61,33 @@ public partial class LocalizationTests
 
         Assert.Empty(english.Except(other));
         Assert.Empty(other.Except(english));
+    }
+
+    [Fact]
+    public void Toolbar_tabs_and_reused_categories_exist_in_every_language()
+    {
+        string[] required =
+        [
+            "toolbar.tab.all",
+            "toolbar.tab.media",
+            "toolbar.tab.edit",
+            "toolbar.tab.model3d_cad",
+            "format.category.Image",
+            "format.category.Document",
+            "format.category.Geo",
+            "format.category.Archive",
+            "format.category.Font"
+        ];
+
+        foreach (var language in LocalizationService.Languages)
+        {
+            var translations = Load(language.Code);
+            foreach (var key in required)
+            {
+                Assert.True(translations.TryGetValue(key, out var value), $"{language.Code}:{key} is missing");
+                Assert.False(string.IsNullOrWhiteSpace(value), $"{language.Code}:{key} is empty");
+            }
+        }
     }
 
     [Theory]
@@ -86,12 +124,16 @@ public partial class LocalizationTests
     }
 
     [Theory]
+    [InlineData("tr", "tr")]
+    [InlineData("tr-TR", "tr")]
+    [InlineData("TR-cy", "tr")]
+    [InlineData("tru", "en")]
     [InlineData("ru-RU", "ru")]
     [InlineData("en-US", "en")]
     [InlineData("pl-PL", "pl")]
     [InlineData("ar-EG", "ar")]
     [InlineData("pt-BR", "pt-BR")]
-    [InlineData("pt-PT", "pt-BR")]
+    [InlineData("pt-PT", "pt-PT")]
     [InlineData("zh-CN", "zh-CN")]
     [InlineData("zh-Hans-CN", "zh-CN")]
     [InlineData("zh-SG", "zh-CN")]
@@ -107,6 +149,8 @@ public partial class LocalizationTests
     [InlineData("frr-DE", "en")]
     [InlineData("ne-NP", "ne")]
     [InlineData("new-NP", "en")]
+    [InlineData("th-TH", "th")]
+    [InlineData("thl-NP", "en")]
     [InlineData("de-DE", "en")]
     [InlineData("", "en")] // Linux without LANG: the invariant culture
     public void Auto_follows_the_language_the_user_reads_the_os_in(string os, string expected) =>
@@ -117,6 +161,8 @@ public partial class LocalizationTests
     [InlineData("ar")]
     [InlineData("ne")]
     [InlineData("en")]
+    [InlineData("pt-PT")]
+    [InlineData("pt-BR")]
     public void A_chosen_language_is_kept_whatever_the_os_is_in(string chosen) =>
         // The OS isn't even asked: the user picked the language in Settings.
         Assert.Equal(chosen, LocalizationService.Resolve(chosen, () => throw new InvalidOperationException("asked the OS")));
@@ -147,6 +193,13 @@ public partial class LocalizationTests
     }
 
     [Fact]
+    public void Turkish_is_offered_under_its_own_name()
+    {
+        Assert.Contains(("tr", "Türkçe"), LocalizationService.Languages);
+        Assert.Equal("tr", LocalizationService.Resolve("TR"));
+    }
+
+    [Fact]
     public void Japanese_is_offered_under_its_own_name()
     {
         Assert.Contains(("ja", "日本語"), LocalizationService.Languages);
@@ -166,6 +219,14 @@ public partial class LocalizationTests
     {
         Assert.Contains(("fr", "Français"), LocalizationService.Languages);
         Assert.Equal("fr", LocalizationService.Resolve("FR"));
+    }
+
+    [Fact]
+    public void Thai_is_offered_under_its_own_name()
+    {
+        Assert.Contains(("th", "ไทย"), LocalizationService.Languages);
+        Assert.Equal("th", LocalizationService.Resolve("TH"));
+        Assert.Contains("fonts:Filee#Noto Sans Thai", ThemeService.FontFamilies("th"));
     }
 
     /// <summary>Han characters look different in Japanese, Korean and Chinese fonts: the UI language's come first.</summary>

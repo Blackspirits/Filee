@@ -183,7 +183,7 @@ public sealed partial class RadialViewModel(UserDataStore store, ILocalizer loc,
     }
 
     /// <summary>
-    /// Shows the other face (the donut is edge-on in its flip). Returns false, changing nothing, when it has no slice
+    /// Shows the other face (at the start of the donut's flip). Returns false, changing nothing, when it has no slice
     /// for these files (<see cref="CanFlip"/>).
     /// </summary>
     public bool ToggleFace()
@@ -241,7 +241,7 @@ public sealed partial class RadialViewModel(UserDataStore store, ILocalizer loc,
             {
                 Id = p.Id,
                 // On a group's ring the group's name gives the context: "Rotate" → Left / Right / 180°.
-                Label = caption ? loc.DisplayName(p) : loc.RingName(p),
+                Label = caption ? loc.DonutName(p) : loc.RingName(p),
                 Caption = !caption ? null
                     : p.TargetFormat == BuiltInData.SameAsSource
                         ? string.Join("/", formats.Select(f => f.DisplayName).Take(2))

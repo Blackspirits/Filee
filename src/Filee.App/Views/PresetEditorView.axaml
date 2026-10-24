@@ -8,6 +8,18 @@
              x:Class="Filee.App.Views.PresetEditorView"
              x:DataType="vm:PresetEditorViewModel">
   <UserControl.Styles>
+    <Style Selector="TextBlock.label">
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <!-- Translated choices can need more than one line, particularly in the 440 px preset dialog. -->
+    <Style Selector="ComboBox:not(.targets)">
+      <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+      <Setter Property="ItemTemplate">
+        <DataTemplate x:DataType="vm:IChoice">
+          <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+        </DataTemplate>
+      </Setter>
+    </Style>
     <!-- Target list: the category sits right-aligned next to each format name. -->
     <Style Selector="ComboBox.targets ComboBoxItem">
       <Setter Property="HorizontalContentAlignment" Value="Stretch" />
@@ -173,6 +185,15 @@
         </Grid>
         <CheckBox Content="{DynamicResource presets.multipage_tiff}" IsChecked="{Binding MultiPageTiff}" IsVisible="{Binding ShowMultiPageTiff}"
                   ToolTip.Tip="{DynamicResource presets.multipage_tiff_hint}" />
+        <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding ShowFitsTiff}">
+          <StackPanel>
+            <TextBlock Classes="label" Text="{DynamicResource presets.fits_tiff}" />
+            <ComboBox ItemsSource="{Binding FitsTiffModes}" SelectedItem="{Binding FitsTiffMode}" HorizontalAlignment="Stretch"
+                      ToolTip.Tip="{DynamicResource presets.fits_tiff_hint}" />
+          </StackPanel>
+        </Grid>
+        <CheckBox Content="{DynamicResource presets.fits_debayer}" IsChecked="{Binding FitsDebayer}" IsVisible="{Binding ShowFitsDebayer}"
+                  ToolTip.Tip="{DynamicResource presets.fits_debayer_hint}" />
         <StackPanel Spacing="6" IsVisible="{Binding ShowSaveEveryFrame}">
           <CheckBox Content="{DynamicResource presets.save_every_frame}" IsChecked="{Binding SaveEveryFrame}"
                     ToolTip.Tip="{DynamicResource presets.save_every_frame_hint}" />
@@ -193,6 +214,14 @@
         <TextBlock Classes="h2" Text="{DynamicResource presets.group.media}" />
         <CheckBox Content="{DynamicResource presets.extract_motion_photo}" IsChecked="{Binding ExtractMotionPhoto}"
                   IsVisible="{Binding ShowExtractMotionPhoto}" ToolTip.Tip="{DynamicResource presets.extract_motion_photo_hint}" />
+        <StackPanel Spacing="6" IsVisible="{Binding ShowSlideshow}">
+          <Grid ColumnDefinitions="Auto,12,120">
+            <TextBlock Classes="label" VerticalAlignment="Center" Text="{DynamicResource presets.slide_seconds}" />
+            <NumericUpDown Grid.Column="2" Value="{Binding SlideSeconds}" Minimum="0.5" Maximum="60" Increment="0.5" FormatString="0.#" />
+          </Grid>
+          <CheckBox Content="{DynamicResource presets.crossfade}" IsChecked="{Binding Crossfade}"
+                    ToolTip.Tip="{DynamicResource presets.crossfade_hint}" />
+        </StackPanel>
         <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding ShowMediaQuality}">
           <StackPanel>
             <TextBlock Classes="label" Text="{DynamicResource presets.media_quality}" />
@@ -285,6 +314,20 @@
       </StackPanel>
     </Border>
 
+    <!-- DWG / DXF: the AutoCAD version to write (#489) -->
+    <Border x:Name="CadCard" Classes="card" IsVisible="{Binding ShowCad}" Padding="14">
+      <StackPanel Spacing="10">
+        <TextBlock Classes="h2" Text="{DynamicResource presets.group.cad}" />
+        <Grid ColumnDefinitions="*,12,*">
+          <StackPanel>
+            <TextBlock Classes="label" Text="{DynamicResource presets.cad_version}" />
+            <ComboBox ItemsSource="{Binding CadVersions}" SelectedItem="{Binding CadVersion}" HorizontalAlignment="Stretch" />
+          </StackPanel>
+        </Grid>
+        <TextBlock Classes="caption" Text="{DynamicResource presets.cad_version_hint}" TextWrapping="Wrap" />
+      </StackPanel>
+    </Border>
+
     <!-- Documents → Markdown: pictures in a folder next to the file, or text only -->
     <Border x:Name="DocumentCard" Classes="card" Padding="14" IsVisible="{Binding ShowLeaveOutPictures}">
       <StackPanel Spacing="10">
@@ -302,6 +345,7 @@
         <TextBlock Classes="h2" Text="{DynamicResource presets.group.pdf}" />
         <CheckBox Content="{DynamicResource presets.merge}" IsChecked="{Binding Merge}" IsVisible="{Binding ShowPdfBuild}" />
         <CheckBox Content="{DynamicResource presets.split}" IsChecked="{Binding SplitPages}" IsVisible="{Binding ShowPdfSplit}" />
+        <TextBlock Classes="caption" TextWrapping="Wrap" Text="{DynamicResource presets.pdf_tables_note}" IsVisible="{Binding ShowPdfTablesNote}" />
         <!-- PDF → PDF: make the file smaller -->
         <StackPanel Spacing="2" IsVisible="{Binding ShowPdfCompression}">
           <Grid ColumnDefinitions="*,12,*">
@@ -317,6 +361,27 @@
             <CheckBox Content="{DynamicResource presets.pdf_keep_metadata}" IsChecked="{Binding KeepMetadata}" />
           </StackPanel>
         </StackPanel>
+        <!-- Scans and pictures → searchable PDF, DOCX, TXT, … with Tesseract (Apple Vision on a Mac) -->
+        <StackPanel Spacing="2" IsVisible="{Binding ShowOcr}">
+          <CheckBox Content="{DynamicResource presets.ocr}" IsChecked="{Binding Ocr}" />
+          <TextBlock Classes="caption" TextWrapping="Wrap" Margin="28,0,0,0" Text="{Binding OcrHint}" />
+          <Grid ColumnDefinitions="*,12,*" Margin="28,6,0,0" IsVisible="{Binding Ocr}">
+            <StackPanel>
+              <TextBlock Classes="label" Text="{DynamicResource presets.ocr_language}" />
+              <ComboBox ItemsSource="{Binding OcrLanguageChoices}" SelectedItem="{Binding OcrLanguage}" HorizontalAlignment="Stretch"
+                        HorizontalContentAlignment="Stretch" MaxDropDownHeight="420">
+                <ComboBox.ItemTemplate>
+                  <DataTemplate x:DataType="vm:IChoice">
+                    <DockPanel>
+                      <TextBlock DockPanel.Dock="Right" Classes="caption" Text="{Binding Detail}" Margin="12,0,0,0" VerticalAlignment="Center" />
+                      <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
+                    </DockPanel>
+                  </DataTemplate>
+                </ComboBox.ItemTemplate>
+              </ComboBox>
+            </StackPanel>
+          </Grid>
+        </StackPanel>
         <StackPanel Spacing="2" IsVisible="{Binding ShowPdfCombine}">
           <CheckBox Content="{DynamicResource presets.combine_pages}" IsChecked="{Binding CombinePages}" />
           <TextBlock Classes="caption" TextWrapping="Wrap" Margin="28,0,0,0" Text="{DynamicResource presets.combine_pages_hint}" />
@@ -326,7 +391,7 @@
             <TextBlock Classes="caption" TextWrapping="Wrap" Margin="28,0,0,0" Text="{DynamicResource presets.split_tall_image_hint}" />
           </StackPanel>
         </StackPanel>
-        <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding ShowPdfBuild}">
+        <Grid ColumnDefinitions="*,12,*" IsVisible="{Binding ShowPageSize}">
           <StackPanel>
             <TextBlock Classes="label" Text="{DynamicResource presets.page_size}" />
             <ComboBox ItemsSource="{Binding PageSizes}" SelectedItem="{Binding PageSize}" HorizontalAlignment="Stretch" />
@@ -358,6 +423,22 @@
           </StackPanel>
         </Grid>
         <CheckBox Content="{DynamicResource presets.pdfa}" IsChecked="{Binding PdfA}" IsVisible="{Binding ShowDocument}" />
+        <!-- Finishing of every PDF the preset writes: watermark, page numbers, password -->
+        <StackPanel Spacing="10" IsVisible="{Binding ShowPdfBuild}">
+          <Grid ColumnDefinitions="*,12,*">
+            <StackPanel>
+              <TextBlock Classes="label" Text="{DynamicResource presets.watermark}" />
+              <TextBox Text="{Binding Watermark}" PlaceholderText="{DynamicResource presets.watermark_hint}" MaxLength="60" />
+            </StackPanel>
+            <StackPanel Grid.Column="2">
+              <TextBlock Classes="label" Text="{DynamicResource presets.pdf_password}" />
+              <TextBox Text="{Binding PdfPassword}" PasswordChar="•" Classes="revealPasswordButton" MaxLength="64"
+                     IsEnabled="{Binding !PdfA}" />
+            </StackPanel>
+          </Grid>
+          <TextBlock Classes="caption" TextWrapping="Wrap" Text="{DynamicResource presets.pdf_password_hint}" />
+          <CheckBox Content="{DynamicResource presets.page_numbers}" IsChecked="{Binding PageNumbers}" />
+        </StackPanel>
       </StackPanel>
     </Border>
 
@@ -397,6 +478,11 @@
                   ToolTip.Tip="{DynamicResource presets.keep_dates_hint}" />
         <CheckBox Content="{DynamicResource presets.zip_result}" IsChecked="{Binding ZipResult}" IsVisible="{Binding ShowZipResult}"
                   ToolTip.Tip="{DynamicResource presets.zip_result_hint}" />
+        <StackPanel>
+          <CheckBox Content="{DynamicResource presets.replace_original}" IsChecked="{Binding ReplaceOriginal}" />
+          <TextBlock Classes="caption" Text="{DynamicResource presets.replace_original_hint}" TextWrapping="Wrap"
+                     IsVisible="{Binding ReplaceOriginal}" Margin="28,2,0,0" />
+        </StackPanel>
       </StackPanel>
     </Border>
   </StackPanel>

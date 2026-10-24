@@ -14,6 +14,344 @@ change, a language may repeat; a language without lines shows the English ones):
 - `recommended`: bug fixes. The card shows once per version.
 - `optional`: new features only. No card, the sidebar button only.
 
+## 2.1.0
+
+<!-- update
+level: recommended
+ko: Windows용 파일에 코드 서명이 들어가서 스마트 앱 컨트롤이나 백신이 Filee를 막는 일이 줄어요
+ko: 스캔본과 그림의 글자를 인식(OCR)해서 검색되는 PDF와 편집할 수 있는 문서로 만들어요
+ko: 사진·동영상·오디오를 압축하고 합치고 정보를 지울 수 있고, 동영상에서 클립을 잘라 낼 수 있어요
+ko: PDF 페이지를 편집하고, 어떤 PDF에든 워터마크·쪽 번호·암호를 넣을 수 있어요
+ko: PDF의 표가 엑셀 시트가 되고, 큰 엑셀 파일을 훨씬 빨리 PDF로 바꿔요
+ko: PDF로 저장하기 전에 스프레드시트 페이지를 배치하고, 저장할 AutoCAD 버전을 고를 수 있어요
+ko: 원본 바꾸기를 켜면 결과가 원본 자리에 들어가고 원본은 휴지통으로 가요
+ko: FITS 천체 사진, iCalendar, HAR, USM 게임 동영상, 자수·플로터 파일을 지원하고 CAD 레이아웃마다 PDF 한 쪽을 만들어요
+ko: 프랑스어, 번체 중국어, 네팔어, 태국어, 튀르키예어, 유럽 포르투갈어와 Material You 테마, 창 크기 조절을 지원해요
+ko: Linux에서는 Filee 안에서 업데이트하고, GNOME·Hyprland Wayland에서 끌기 제스처를 쓸 수 있어요(실험 기능)
+ko: 중국어 텍스트가 한글로 읽히던 문제, Word 기호가 빠지던 문제, 트레이에서 창이 두 개 뜨던 문제 등을 고쳤어요
+en: Windows files are now code-signed, so Smart App Control and antivirus programs block Filee less often
+en: Recognize text in scans and pictures (OCR): searchable PDFs and documents you can edit
+en: Compress, merge and clean up photos, videos and audio, and cut a clip out of a video
+en: Edit PDF pages, and add a watermark, page numbers or a password to any PDF
+en: Tables in PDFs become Excel sheets, and large Excel files turn into PDFs much faster
+en: Lay out spreadsheet pages before saving a PDF, and choose the AutoCAD version to save in
+en: Replace the original: the result takes its place and the original goes to the Recycle Bin
+en: FITS astrophotos, iCalendar, HAR, USM game videos, embroidery and plotter files, and a PDF page per CAD layout
+en: French, Traditional Chinese, Nepali, Thai, Turkish and European Portuguese, a Material You theme and window zoom
+en: Linux: updates from inside Filee, and drag gestures on GNOME and Hyprland Wayland (experimental)
+en: Fixed Chinese text read as Korean, missing Word symbols, a second window from the tray and more
+zh: Windows 文件现已带有代码签名，智能应用控制和杀毒软件拦截 Filee 的情况会更少
+zh: 识别扫描件和图片中的文字（OCR），生成可搜索的 PDF 和可编辑的文档
+zh: 可以压缩、合并照片、视频和音频并清除其元数据，还能从视频中剪出片段
+zh: 可以编辑 PDF 页面，并为任意 PDF 添加水印、页码或密码
+zh: PDF 中的表格可转为 Excel 工作表，大型 Excel 文件转 PDF 也快得多
+zh: 保存为 PDF 前可以排版电子表格页面，还可以选择保存的 AutoCAD 版本
+zh: 替换原文件：结果放到原文件的位置，原文件移到回收站
+zh: 支持 FITS 天文照片、iCalendar、HAR、USM 游戏视频、刺绣和绘图仪文件，CAD 的每个布局各成一页 PDF
+zh: 新增法语、繁体中文、尼泊尔语、泰语、土耳其语和欧洲葡萄牙语界面，以及 Material You 主题和窗口缩放
+zh: Linux：可在 Filee 内直接更新，并支持 GNOME 和 Hyprland Wayland 上的拖动手势（实验性）
+zh: 修复了中文文本被读成韩文、Word 符号丢失、从托盘打开两个窗口等问题
+pl: Pliki dla Windows są teraz podpisane cyfrowo, więc Inteligentna kontrola aplikacji i antywirusy rzadziej blokują Filee
+pl: Rozpoznawanie tekstu w skanach i obrazach (OCR): przeszukiwalne pliki PDF i dokumenty do edycji
+pl: Kompresja, łączenie i czyszczenie zdjęć, wideo i dźwięku oraz wycinanie klipu z wideo
+pl: Edycja stron PDF oraz znak wodny, numery stron lub hasło w każdym pliku PDF
+pl: Tabele z PDF stają się arkuszami Excela, a duże pliki Excela znacznie szybciej zamieniają się w PDF
+pl: Układ stron arkusza przed zapisem do PDF i wybór wersji AutoCAD przy zapisie
+pl: Zastąp oryginał: wynik zajmuje jego miejsce, a oryginał trafia do Kosza
+pl: Zdjęcia astronomiczne FITS, iCalendar, HAR, filmy z gier USM, pliki hafciarskie i plotterowe oraz strona PDF na każdy układ CAD
+pl: Język francuski, chiński tradycyjny, nepalski, tajski, turecki i portugalski europejski, motyw Material You i powiększanie okien
+pl: Linux: aktualizacje z poziomu Filee i gesty przeciągania w GNOME i Hyprland na Wayland (eksperymentalne)
+pl: Poprawiono chiński tekst odczytywany jako koreański, znikające symbole z Worda, drugie okno z zasobnika i więcej
+es: Los archivos de Windows ahora están firmados, así que Control inteligente de aplicaciones y los antivirus bloquean Filee con menos frecuencia
+es: Reconoce el texto de escaneos e imágenes (OCR): PDF con búsqueda y documentos editables
+es: Comprime, une y limpia fotos, vídeos y audio, y recorta un clip de un vídeo
+es: Edita páginas de PDF y añade una marca de agua, números de página o una contraseña a cualquier PDF
+es: Las tablas de los PDF pasan a hojas de Excel, y los Excel grandes pasan a PDF mucho más rápido
+es: Prepara las páginas de una hoja de cálculo antes de guardarla en PDF, y elige la versión de AutoCAD al guardar
+es: Reemplazar el original: el resultado ocupa su lugar y el original va a la Papelera
+es: Astrofotos FITS, iCalendar, HAR, vídeos de juegos USM, archivos de bordado y de plóter, y una página de PDF por presentación de CAD
+es: Francés, chino tradicional, nepalí, tailandés, turco y portugués europeo, un tema Material You y zoom de ventanas
+es: Linux: actualizaciones desde Filee y gestos de arrastre en GNOME e Hyprland con Wayland (experimental)
+es: Corregidos el texto chino leído como coreano, los símbolos de Word que faltaban, una segunda ventana desde la bandeja y más
+hi: Windows की फ़ाइलें अब कोड-साइन की हुई हैं, इसलिए स्मार्ट ऐप कंट्रोल और एंटीवायरस Filee को कम रोकते हैं
+hi: स्कैन और चित्रों का टेक्स्ट पहचानें (OCR): खोजने योग्य PDF और संपादन योग्य दस्तावेज़
+hi: फ़ोटो, वीडियो और ऑडियो को कंप्रेस करें, जोड़ें और उनका मेटाडेटा हटाएँ, और वीडियो से क्लिप काटें
+hi: PDF के पेज संपादित करें, और किसी भी PDF में वॉटरमार्क, पेज नंबर या पासवर्ड जोड़ें
+hi: PDF की तालिकाएँ Excel शीट बनती हैं, और बड़ी Excel फ़ाइलें बहुत तेज़ी से PDF बनती हैं
+hi: PDF सहेजने से पहले स्प्रेडशीट के पेज व्यवस्थित करें, और सहेजने के लिए AutoCAD संस्करण चुनें
+hi: मूल फ़ाइल बदलें: परिणाम उसकी जगह लेता है और मूल फ़ाइल रीसायकल बिन में जाती है
+hi: FITS खगोल फ़ोटो, iCalendar, HAR, USM गेम वीडियो, कढ़ाई और प्लॉटर फ़ाइलें, और हर CAD लेआउट का एक PDF पेज
+hi: फ़्रेंच, पारंपरिक चीनी, नेपाली, थाई, तुर्की और यूरोपीय पुर्तगाली भाषाएँ, Material You थीम और विंडो ज़ूम
+hi: Linux: Filee के अंदर से अपडेट, और GNOME व Hyprland Wayland पर ड्रैग जेस्चर (प्रायोगिक)
+hi: चीनी टेक्स्ट का कोरियाई पढ़ा जाना, Word के गायब चिह्न, ट्रे से दूसरी विंडो खुलना और कई गड़बड़ियाँ ठीक की गईं
+ja: Windows 版のファイルにコード署名が付き、スマート アプリ コントロールやウイルス対策ソフトに止められにくくなりました
+ja: スキャンや画像の文字を認識（OCR）して、検索できる PDF や編集できる文書にできます
+ja: 写真・動画・音声の圧縮、結合、メタデータの削除と、動画からのクリップの切り出しができます
+ja: PDF のページを編集し、どの PDF にも透かし・ページ番号・パスワードを付けられます
+ja: PDF の表が Excel のシートになり、大きな Excel ファイルもずっと速く PDF にできます
+ja: PDF に保存する前に表計算のページをレイアウトでき、保存する AutoCAD のバージョンも選べます
+ja: 元のファイルを置き換える：結果がその場所に入り、元のファイルはごみ箱へ移ります
+ja: FITS の天体写真、iCalendar、HAR、USM のゲーム動画、刺しゅう・プロッターのファイルに対応し、CAD のレイアウトごとに PDF のページを作ります
+ja: フランス語、繁体字中国語、ネパール語、タイ語、トルコ語、ヨーロッパ・ポルトガル語、Material You テーマ、ウィンドウの拡大・縮小に対応しました
+ja: Linux：Filee の中から更新でき、GNOME と Hyprland の Wayland でドラッグ操作が使えます（試験的）
+ja: 中国語のテキストが韓国語として読まれる問題、Word の記号が消える問題、タスクトレイから二つ目のウィンドウが開く問題などを修正しました
+ru: Файлы для Windows теперь подписаны, поэтому Интеллектуальное управление приложениями и антивирусы реже блокируют Filee
+ru: Распознавание текста на сканах и картинках (OCR): PDF с поиском и редактируемые документы
+ru: Сжатие, объединение и очистка фото, видео и аудио, а также вырезание клипа из видео
+ru: Редактирование страниц PDF, а также водяной знак, номера страниц или пароль для любого PDF
+ru: Таблицы из PDF становятся листами Excel, а большие файлы Excel намного быстрее превращаются в PDF
+ru: Разметка страниц таблицы перед сохранением в PDF и выбор версии AutoCAD для сохранения
+ru: Заменить оригинал: результат занимает его место, а оригинал отправляется в Корзину
+ru: Астрофото FITS, iCalendar, HAR, игровые видео USM, файлы вышивки и плоттера, а также страница PDF на каждый лист CAD
+ru: Французский, традиционный китайский, непальский, тайский, турецкий и европейский португальский, тема Material You и масштаб окон
+ru: Linux: обновления прямо из Filee и жесты перетаскивания в GNOME и Hyprland на Wayland (экспериментально)
+ru: Исправлены чтение китайского текста как корейского, пропадающие символы Word, второе окно из трея и другое
+ar: أصبحت ملفات Windows موقّعة رقميًا، فيقلّ حظر التحكم الذكي في التطبيقات وبرامج مكافحة الفيروسات لـ Filee
+ar: التعرّف على النص في المستندات الممسوحة والصور (OCR): ملفات PDF قابلة للبحث ومستندات قابلة للتحرير
+ar: ضغط الصور والفيديو والصوت ودمجها وتنظيفها، واقتطاع مقطع من فيديو
+ar: تحرير صفحات PDF، وإضافة علامة مائية أو أرقام صفحات أو كلمة مرور إلى أي ملف PDF
+ar: تتحول جداول PDF إلى أوراق Excel، وتتحول ملفات Excel الكبيرة إلى PDF بسرعة أكبر بكثير
+ar: تنسيق صفحات جدول البيانات قبل حفظه بصيغة PDF، واختيار إصدار AutoCAD عند الحفظ
+ar: استبدال الأصل: تأخذ النتيجة مكانه وينتقل الأصل إلى سلة المحذوفات
+ar: صور الفلك FITS وiCalendar وHAR وفيديوهات الألعاب USM وملفات التطريز والراسمات، وصفحة PDF لكل تخطيط CAD
+ar: الفرنسية والصينية التقليدية والنيبالية والتايلاندية والتركية والبرتغالية الأوروبية، ومظهر Material You وتكبير النوافذ
+ar: Linux: التحديث من داخل Filee، وإيماءات السحب في GNOME وHyprland على Wayland (تجريبي)
+ar: إصلاح قراءة النص الصيني كأنه كوري، واختفاء رموز Word، وفتح نافذة ثانية من منطقة الإعلام، وغير ذلك
+pt-BR: Os arquivos para Windows agora são assinados, então o Controle Inteligente de Aplicativos e os antivírus bloqueiam o Filee com menos frequência
+pt-BR: Reconheça o texto de digitalizações e imagens (OCR): PDFs pesquisáveis e documentos editáveis
+pt-BR: Comprima, junte e limpe fotos, vídeos e áudio, e corte um trecho de um vídeo
+pt-BR: Edite páginas de PDF e adicione marca d'água, números de página ou senha a qualquer PDF
+pt-BR: Tabelas de PDF viram planilhas do Excel, e arquivos grandes do Excel viram PDF muito mais rápido
+pt-BR: Organize as páginas de uma planilha antes de salvar em PDF e escolha a versão do AutoCAD ao salvar
+pt-BR: Substituir o original: o resultado fica no lugar dele e o original vai para a Lixeira
+pt-BR: Astrofotos FITS, iCalendar, HAR, vídeos de jogos USM, arquivos de bordado e de plotter, e uma página de PDF por layout de CAD
+pt-BR: Francês, chinês tradicional, nepalês, tailandês, turco e português europeu, um tema Material You e zoom das janelas
+pt-BR: Linux: atualizações dentro do Filee e gestos de arrastar no GNOME e no Hyprland com Wayland (experimental)
+pt-BR: Corrigidos texto chinês lido como coreano, símbolos do Word que sumiam, uma segunda janela pela bandeja e mais
+-->
+
+### New
+
+- **Signed for Windows** (issue #333). 2.1.0 is the first Filee whose Windows files are code-signed, with a Certum
+  open source certificate issued to "Open Source Developer MYEONGGU KIM". `Filee-2.1.0-win-Setup.exe`, the portable
+  zip's files, `Filee.exe`, `filee-cli.exe`, the uninstaller and the bundled programs and libraries that came unsigned
+  (rhwp, 7-Zip and most libraries) carry that signature; files their makers signed (.NET, ImageMagick, the Microsoft
+  C++ runtime …) keep their own. Smart App Control and other Application Control policies, which could refuse to load
+  parts of an unsigned Filee, let it start, antivirus programs flag it less often, and Windows names the publisher
+  instead of "Unknown publisher". SmartScreen can still warn about a new release until it has been downloaded enough
+  ("More info" → "Run anyway"). macOS packages stay ad-hoc signed and not notarized.
+- **Text recognition (OCR)** (issue #288, by @cre8ive-marketing; Apple Vision by @smjrifle). Scans and pictures become
+  searchable PDFs, and their text goes into DOCX, TXT, Markdown and HWPX: a scanned PDF → DOCX gives text you can edit
+  instead of pictures of the pages. Tick **Recognize text (OCR)** in the PDF card of the preset editor (for PDF, DOCX,
+  TXT, Markdown and HWPX targets) and pick the language of the text: 69 languages, each downloaded the first time it's
+  needed (0.4 to 10 MB). The new **Searchable PDF** preset does it in one step; it's in the preset list, not on a
+  donut, so add it in Settings → Donut toolbar. Pages that already have text are copied as they are, and a PDF with
+  text on every page is left as it is, with a note. Bookmarks and form fields of a scanned PDF don't come along.
+  - On Windows, **Tesseract** is a new engine in Settings → Engines (offered, not installed for you). On Linux and
+    macOS, Filee uses the system's Tesseract (`sudo apt install tesseract-ocr`, `brew install tesseract`).
+  - On macOS, **Apple Vision** reads the text with nothing to download. Languages it can't read (Hindi, Nepali, Greek
+    …) need Tesseract.
+- **Everyday media tools** (by @cre8ive-marketing). Eight new presets:
+  - **Compress image**: the same format, smaller (quality 75, never above a JPEG's own; PNG and TIFF losslessly).
+  - **Compress video**: H.264 MP4 at the Small quality, at most 1080p. **Compress audio**: AAC M4A at 128 kbit/s.
+  - **Extract audio**: a video's sound as M4A, copied without re-encoding when it's AAC or ALAC.
+  - **Merge videos** and **Merge audio**: the files joined into one, in the order you set in the merge order window.
+    Clips recorded the same way are copied as they are; others are fitted into the first clip's frame and encoded.
+  - **Video from images**: the pictures as a 1080p MP4, 3 s each with 1 s crossfades (both can be changed in the
+    preset editor), up to 300 pictures.
+  - **Remove metadata**: a copy named `{name}_clean` without EXIF, location, comments, tags, chapters, or a PDF's
+    document information. Videos and audio aren't re-encoded, and MKV subtitle fonts stay.
+
+  A compressed result that isn't smaller is replaced by the original, with a note. A new library has them on the
+  back faces of the image, video, audio and PDF donuts (Extract Live Photo video leaves the image donut's back face to
+  make room, and stays in the preset list); an updated library gets them where a back face has room, and Extract audio
+  takes the M4A slice's place on the video donut's back. Video from images is on no donut. All but Compress image, and
+  Remove metadata for pictures and PDFs, need FFmpeg.
+- **Cut a clip** (by @flexeykinDev). The first slice on the back of the video donut (in FLAC's place; FLAC stays in
+  the preset list) opens your videos one after another in a clip window. Pick the start and end on an overview of the
+  whole video, or press 15 s / 30 s / 60 s; **Space** plays the clip with its sound. **C** cuts at the playhead,
+  **Delete** takes a piece out, and dragging a piece's edge trims it. Each piece can have its own volume, mute and
+  speed (0.25× to 4×, the pitch kept), and the clip can get music from another file, *Remove silence*, fades in and
+  out, and Ctrl+Z / Ctrl+Y. *Fast, no re-encoding* copies a plain clip in a moment but starts at the key frame before
+  the start; cuts, speed, volume or fades are encoded with the preset's settings. Results are saved as `{name}_clip`.
+  Needs FFmpeg.
+- **Edit PDF pages** (by @Perricheno). **Edit**, the first slice on the back of the PDF donut, opens into Crop, Rotate left,
+  Rotate right, Pages, Split and Add. Crop and rotate change only the page boxes and the rotation, so text and
+  drawings stay sharp and bookmarks and forms stay. **Pages** opens a page editor with thumbnails and a large preview:
+  reorder, rotate and delete pages, add pages from another PDF, or extract the selected page as its own file.
+- **Watermark, page numbers and a password** (by @cre8ive-marketing). The PDF card of the preset editor has three new
+  options for every PDF a preset writes, whatever it is made from: a **Watermark** text ("DRAFT"), large and light
+  grey across each page; **Page numbers** ("3 / 10" at the bottom); and a **Password to open** (AES-256). With *Merge
+  into one PDF* the pages are numbered through. The watermark and the numbers can't be selected or searched, and a
+  PDF/A can't have a password. The password is saved with the preset in Filee's settings, but left out of the history
+  and of Settings → General → Export.
+- **PDF tables to Excel** (issue #267, by @cre8ive-marketing). The XLSX preset now takes PDFs: every table drawn with
+  lines becomes its own sheet, with merged cells, borders, column widths, and numbers, amounts, percentages and dates
+  as real values (codes with a leading zero stay text). A table that goes on over the next page stays one sheet,
+  without its repeated header. Text outside the tables is left out, tables without lines aren't found, and a PDF
+  without ruled tables (or a scan) stops with a message. ODS and CSV work the same way. The XLSX preset isn't on the
+  PDF donut; add it in Settings → Donut toolbar.
+- **Spreadsheet Print Studio** (by @Perricheno). **PDF + Edit**, the first slice on the back of the spreadsheets
+  donut, opens an Excel workbook before it becomes a PDF: the sheets in output order on the left, the real PDF pages
+  in the middle, and the page setup on the right (print area, paper, portrait or landscape, scale or fit to pages,
+  margins, page order, hidden rows and columns, manual page breaks). A sheet can be split into regions with a page
+  setup each. When a workbook asks for a tiny scale, or a very wide sheet has no print area, it offers a suggested
+  layout. The preview is exactly what is exported, and your workbook isn't changed. Needs LibreOffice.
+- **Replace the original** (issue #332, by @cre8ive-marketing). A new option in the preset editor's output card, off
+  unless you tick it. When a file's result has the same format as the file (Compress image, Rotate, Trim transparent
+  borders …), the original goes to the Recycle Bin / Trash and the result takes its name and place. When the original
+  can't go there (a network drive, a file open in another program), both are kept and the notice says why. It never
+  applies to watch folders, files from a browser, ZIP results, files that become several, or the command line.
+- **Trim transparent borders** (issue #332, by @cre8ive-marketing). A new preset on the image donut's back face, after
+  Remove background: a copy named `name_trimmed`, cropped to the pixels that aren't fully transparent. Pictures without
+  transparency and animations stay as they are.
+- **More formats**, 263 in all.
+  - **FITS** astrophotos (`.fits`, `.fts`; issue #460) from telescope cameras and capture or stacking programs such as
+    N.I.N.A., on the image donut. To PNG, JPG and the other picture formats they're stretched automatically, like a
+    capture program's preview, and a raw frame from a colour camera is debayered with the Bayer pattern in its header
+    (*Debayer FITS from a colour camera* in the preset editor, on unless you turn it off). To TIFF they keep their
+    data: *FITS (astronomy) to TIFF* is *Linear: the data as it is* (8 and 16 bits stay as they are, 32-bit and
+    floating-point data become 32-bit floating point, never debayered) or *Stretched, like a preview*. PNG and JPG are
+    8-bit. Tile-compressed files (fpack, `.fz`) stop with a message asking to `funpack` them, and `.fit` is left to
+    Garmin FIT files.
+  - **CRI USM** game videos (`.usm`; issue #485), used for the cutscenes of many games, to MP4 and the other video and
+    audio formats, with FFmpeg. Encrypted USM files can't be read.
+  - **iCalendar** (`.ics`; issue #340, by @SeoJCalive): events and to-dos become CSV, one row each, and through it
+    JSON and the other data formats; CSV goes back to `.ics`. The new "iCalendar" preset is on the back of the
+    spreadsheets donut, after vCard. Recurring events keep their rule; they aren't expanded.
+  - **HAR** network logs (issue #328): to JSON, YAML, XML, or a table with one request per row (CSV, spreadsheets,
+    PDF).
+  - **Raw H.265 / H.264 streams** (`.h265`, `.265`, `.hevc`, `.h264`, `.264`; issue #301) to MP4 and the other video
+    formats, with FFmpeg.
+  - **Tajima DST embroidery** (issue #397): the stitches at real size as PNG, JPG, PDF or SVG, a colour per thread
+    (DST stores none). AutoCAD sheet sets, which also use `.dst`, are refused with the reason.
+  - **HP-GL plot files** (`.plt`, `.hpgl`, `.hpg`, `.hgl`; issue #410), also AutoCAD's "plot to file", to PDF, PNG,
+    JPG and SVG with their pen colours and widths. Text labels and fill patterns aren't drawn.
+  - **Lua, CSS and PowerShell** (`.lua`, `.css`, `.ps1`; issues #388, #368, #442) become text like the other scripts:
+    read, never run.
+  - **`.png_large` / `.jpg_large`** downloads open as PNG and JPEG (issue #461, by @Nitjsefnie).
+
+  Your donuts learn the new extensions, unless one of your own donuts already takes them.
+- **CAD drawings.**
+  - **One page per layout** (issue #172, by @cre8ive-marketing). DWG / DXF → PDF makes a page for each paper-space
+    layout, in tab order, with model space drawn through each viewport at its scale. Drawings without layouts come
+    out as before, and SVG and pictures are still one picture of model space. Twisted views, layers frozen per
+    viewport, clipped viewports and the layout's paper size and plot scale aren't followed yet.
+  - **AutoCAD version** (issue #489, by @cre8ive-marketing). DWG and DXF presets have a "CAD drawing" card: 2018 (as
+    before), 2013, 2010, 2007, 2004, 2000 or *Same as the source*, and DWG → DWG or DXF → DXF just changes the
+    version. Objects the version doesn't have (multileaders, meshes …) are left out with a note. Before 2007, Korean,
+    Chinese or Japanese text is saved in the code page that fits it. A 2007 DWG is saved as 2004, which AutoCAD 2007
+    opens.
+- **Material You** (by @gtxPrime). Settings → Theme → *Theme style* has *Filee Soft* (as before) and *Material You*,
+  with Material 3 surfaces toned from your accent colour. The accent colours come as vibrant swatches and pastel
+  presets.
+- **Window size** (by @flexeykinDev). Settings → Theme → *Window size* makes everything in Filee's windows larger or
+  smaller (70 to 180 %), with Reset. In any window, Ctrl + mouse wheel and Ctrl + plus / minus do the same, and
+  Ctrl + 0 goes back to 100 % (⌘ on a Mac). The donut and the toasts keep their size.
+- **Preset tabs** (issue #343, by @SeoJCalive). *Available presets* in Settings → Donut toolbar is split into tabs:
+  All, Image, Document, Video & audio, Edit, 3D & CAD, Geospatial, Archive and Font; tabs with nothing for the selected
+  donut are hidden. A search looks through every tab and also shows, dimmed and with the reason, presets the donut's
+  files can't use.
+- **Missing fonts** (issue #413, by @Perricheno). When a DOCX, XLSX, PPTX or HWPX names fonts this computer doesn't
+  have, the conversion still runs and its card lists them, with **Get fonts** opening each font's own page
+  (Microsoft's, the project's, or Google Fonts). Nothing is downloaded or installed for you. Fonts embedded in the
+  document, or with a look-alike installed (Calibri → Carlito), don't count. The command line reports them too.
+- **Choose files on Home** (by @gtxPrime). Double-click the drop zone to pick files; the donut opens at the pointer.
+- **Updates on Linux** (by @manish0467). A Filee installed with `install.sh` downloads and installs new versions
+  itself, as on Windows: it checks the download against the release's checksums, closes, installs and starts again,
+  and your settings, presets, history and engines stay. If the install fails, the previous version is put back and
+  Filee says so. To get 2.1.0 over 2.0.0, unpack the package and run `./install.sh --upgrade`, which keeps the engines
+  you downloaded (without `--upgrade`, an existing install is still never overwritten).
+- **Wayland** (experimental).
+  - **GNOME** (by @yanscholze). On GNOME Shell 45 to 50, `install.sh` adds the Shell extension "Filee donut at the
+    cursor". Turn it on in Extensions (sign out and in again if it doesn't show), then hold Ctrl and drag a file in
+    Files. No `input` group or root is needed. Selection shortcuts, Hold, and flipping the donut during a drag don't
+    work there. `install.sh` and updates keep the extension current, and Settings → Shortcuts says when Filee is
+    waiting for it or when the running extension belongs to another version (sign out and in again).
+  - **Hyprland** (by @mahaveergurjar). The drag gesture 2.0.0 brought to KDE (`FILEE_WAYLAND_GESTURES=1` and the
+    `input` group) works on Hyprland too, with a few window rules. `FILEE_USE_WAYLAND=1` runs Filee as a native Wayland
+    app instead of through XWayland. installer/linux/INSTALL.txt has the steps.
+- **macOS disk image** (issue #379). Next to the tar.gz, each macOS package comes as a `.dmg` too: open it and drag
+  Filee to Applications. The `filee` command still comes with the tar.gz's `install.sh`, and the first start still
+  goes through Privacy & Security → Open Anyway.
+- **Languages.** Filee speaks French (by @devohmycode), Traditional Chinese, also for Hong Kong and Macau (by
+  @LouisChen-TW), Nepali (by @smjrifle), Thai, with its own font (by @Sudo-Bannawat), Turkish, in Setup too (by
+  @xmetropolicex), and European Portuguese, next to Brazilian Portuguese (by @Blackspirits). It picks them when
+  Windows, macOS or Linux does: a PC set to Portugal gets European Portuguese, one set to Brazil Brazilian, and a
+  language picked in Settings stays as it is.
+
+### Improved
+
+- **Large spreadsheets to PDF.** XLSX, XLS, ODS and CSV going to PDF or pictures through Filee's built-in route are
+  drawn far faster: a 65-page workbook takes 25 seconds instead of 24 minutes, and the progress bar no longer stalls
+  halfway.
+- **Rows to repeat at top** (issue #407, by @cre8ive-marketing). XLSX → PDF repeats the rows a sheet sets in Page
+  Layout → Print Titles on every page, not only frozen rows.
+- **Every audio track** (issue #396, by @cre8ive-marketing). Video → video keeps all audio tracks (a film with several
+  languages) with their language tags, not only the first. FLV and DV still hold one.
+- **Cyrillic, Greek and Central European text to PDF** (by @anatolykoptev). Russian, Greek, Polish, Czech, Turkish,
+  Vietnamese and other text with letters beyond Western European ones came out of DOCX, Markdown, TXT, HTML, XLSX,
+  PPTX and HWPX → PDF with letters on top of each other. Such documents now go through LibreOffice when it's
+  installed; without it they convert as before.
+- **Arabic in `.xls`** (issue #345, by @cre8ive-marketing). Old Excel files with Arabic now take the route XLSX took
+  in 2.0.0 (LibreOffice, or a message without it) instead of becoming PDFs with broken letters.
+- **Word → Markdown** (issue #391). Tables with merged cells become plain Markdown tables instead of HTML, pictures are
+  linked relative to the result, and EMF / WMF pictures become PNG on Windows.
+- **Crop** (issue #369, by @cre8ive-marketing). The frame's centre snaps onto the picture's centre lines, with a dashed
+  guide, while you drag it. The arrow keys still move it by a pixel.
+- **The donut's flip** (issue #371, by @SeoJCalive). Each slice now turns over on its own, in a short wave that starts
+  where you point and spreads both ways, and the whole flip still takes 0.2 s. The face switches the moment the flip
+  starts, so a file dropped during the flip goes to the new face's slice. With "Reduce animations" the faces still
+  swap at once.
+- **Recent conversions** (by @gtxPrime) show thumbnails of videos too, with FFmpeg.
+- **Installing an update** (Windows, by @gtxPrime) from the sidebar, About or the tray shows a window with the
+  download's progress.
+
+### Fixed
+
+- A TXT, Markdown or CSV file saved as "ANSI" was always read as Korean, so Chinese, Japanese or Western text turned
+  into Hangul (issue #491, by @cre8ive-marketing). It's now read in the computer's own code page, and as Korean when it
+  looks Korean or on a Korean PC. A Chinese file on an English PC still can't be told apart.
+- Check boxes, ticks, arrows and other symbols inserted from Wingdings, Webdings or Symbol came out of Word and
+  PowerPoint → PDF or HWPX as black dots (issue #350). They're the right characters now.
+- On Linux without Korean fonts, DOCX, XLSX and other documents converted to PDF through rhwp came out without their
+  text (by @Perricheno).
+- Spreadsheets converted to PDF through LibreOffice could get completely empty pages. They're removed, with a note;
+  PDF/A results are left as LibreOffice wrote them (by @Perricheno).
+- A file with a file name token in its own name had it filled in: `Minutes {date}.png` became `Minutes 20261022.jpg`
+  (by @Bortlesboat). Only the tokens in your file name pattern are filled in now.
+- *One ZIP* packed only the `.shp` of a Shapefile, and selecting a Shapefile with its `.dbf`, `.shx`, `.prj` … opened
+  the donut for mixed files and failed once per companion. A Shapefile now goes into the ZIP with its companion files,
+  and a selected set counts as one file (by @KAPPI1925).
+- Double-clicking the tray icon could open two main windows (Windows).
+- After quitting Filee from the tray, the mouse stuttered for about five seconds (issue #358).
+- Shortcuts (issue #450): the recorder couldn't take Space or Enter, so even Ctrl+Alt+Space couldn't be recorded again.
+  Hold and the keyboard shortcut didn't work on files selected on the desktop. Hold never fired when it used the same
+  keys and button as Drag. A keyboard shortcut is now judged by the window in front, not by where the pointer is. When
+  *Start at sign-in* doesn't stick (security software, for example), the switch says so.
+- On macOS, the Accessibility alert showed at every start after an update or reinstall (issues #316, #426). It shows
+  once, and the reminder says to remove Filee from the list with − and add it again with +. `install.sh` clears the
+  download flag on Filee.app and replaces a `filee` link left behind by an app moved to the Trash.
+- On KDE Plasma with Wayland, the donut could open behind the file manager (by @Perricheno). After updating Filee,
+  upgrade the KWin script: the `kpackagetool6` line in installer/linux/INSTALL.txt with `--upgrade` instead of
+  `--install`, then the reconfigure line (`qdbus6`, `qdbus-qt6` or `qdbus`, depending on the distribution).
+- On macOS, one press of the flip key while dragging could flip the donut twice, back to the face it started on (issue
+  #504, by @cre8ive-marketing). It flips once.
+- A glTF model whose buffer or texture names are percent-encoded (`mesh%20data.bin`) failed to find those files (by
+  @Stamina9).
+- The sample switch in Settings → Theme's preview didn't react to clicks. It now flips on and off to show the
+  theme's switch, with the mouse or Space, and still changes no setting (issue #363, by @Saad-elnagar).
+- The engine setup window ran off small or scaled screens with its buttons out of reach (issue #370). The list
+  scrolls now, the buttons stay in the window, and Esc closes it.
+- A donut slice's small caption was cut off; it takes a second line where the slice has room (issue #361, by
+  @devohmycode).
+- In Settings → Donut toolbar, a donut's count showed only its front face, and the preset search had no clear button
+  and stayed when you chose another donut (issues #425, #427, by @cre8ive-marketing). The count shows both faces
+  (`10 · 9`), every search box has an ×, and the preset search empties when you switch donuts.
+- **Security** (by @Bddgc): before the built-in updater runs a downloaded installer, it checks that Windows trusts its
+  signature and that the publisher who signed the running Filee signed it too. From 2.1.0 on, an installer signed by
+  anyone else, or not at all, is deleted and you're sent to the download page instead.
+
 ## 2.0.0
 
 <!-- update

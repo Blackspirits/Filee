@@ -9,6 +9,7 @@ internal static class AppLanguages
     public static readonly IReadOnlyList<(string Code, string NativeName)> All =
     [
         ("en", "English"),
+        ("tr", "Türkçe"),
         ("es", "Español"),
         ("ja", "日本語"),
         ("ko", "한국어"),
@@ -18,10 +19,30 @@ internal static class AppLanguages
         ("hi", "हिन्दी"),
         ("ru", "Русский"),
         ("ar", "العربية"),
+        ("pt-PT", "Português (Portugal)"),
         ("pt-BR", "Português (Brasil)"),
         ("fr", "Français"),
         ("ne", "नेपाली"),
+        ("th", "ไทย"),
     ];
+
+    /// <summary>Shared Portuguese region policy for the app and Setup, including legacy Inno language codes.</summary>
+    public static string? PortugueseVariant(string name)
+    {
+        var normalized = name.Trim().Replace('_', '-');
+        if (normalized.Equals("ptpt", StringComparison.OrdinalIgnoreCase))
+            return "pt-PT";
+        if (normalized.Equals("ptbr", StringComparison.OrdinalIgnoreCase))
+            return "pt-BR";
+        var parts = normalized.Split('-');
+        if (!parts[0].Equals("pt", StringComparison.OrdinalIgnoreCase))
+            return null;
+        // The region follows the language and optional script (pt-Latn-BR). Do not mistake an extension or
+        // private-use subtag for a region: pt-PT-x-br still means Portuguese as used in Portugal.
+        var regionIndex = parts.Length > 1 && parts[1].Length == 4 && parts[1].All(char.IsAsciiLetter) ? 2 : 1;
+        return parts.ElementAtOrDefault(regionIndex)?.Equals("BR", StringComparison.OrdinalIgnoreCase) == true
+            ? "pt-BR" : "pt-PT";
+    }
 
     /// <summary>
     /// True for a Chinese culture name written in Traditional characters: "zh-TW", "zh-HK", "zh-Hant-TW", "zh-CHT" …

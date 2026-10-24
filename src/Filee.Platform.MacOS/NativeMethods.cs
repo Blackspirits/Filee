@@ -181,6 +181,34 @@ internal static class NativeMethods
         return succeeded;
     }
 
+    /// <summary>
+    /// NSFileManager trashItemAtURL: the file goes to the Trash of its volume, where Finder can put it back. Null when
+    /// it worked, else the reason macOS gives.
+    /// </summary>
+    public static Filee.Core.Platform.TrashRefusal? MoveToTrash(string path)
+    {
+        using var pool = new AutoreleasePool();
+        var text = CFStringCreateWithCString(0, Path.GetFullPath(path), 0x08000100);
+        try
+        {
+            var url = Send(objc_getClass("NSURL"), sel_registerName("fileURLWithPath:"), text);
+            var manager = Send(objc_getClass("NSFileManager"), sel_registerName("defaultManager"));
+            if (SendTrash(manager, sel_registerName("trashItemAtURL:resultingItemURL:error:"), url, 0, out var error))
+                return null;
+            var description = error == 0 ? 0 : Send(error, sel_registerName("localizedDescription"));
+            return new Filee.Core.Platform.TrashRefusal("trash.failed",
+                description == 0 ? null : Marshal.PtrToStringUTF8(Send(description, sel_registerName("UTF8String"))));
+        }
+        finally
+        {
+            CFRelease(text);
+        }
+    }
+
+    [DllImport(ObjC, EntryPoint = "objc_msgSend")]
+    [return: MarshalAs(UnmanagedType.I1)]
+    private static extern bool SendTrash(nint receiver, nint selector, nint url, nint resultingUrl, out nint error);
+
     private readonly struct AutoreleasePool : IDisposable
     {
         private readonly nint _pool = Send(Send(objc_getClass("NSAutoreleasePool"), sel_registerName("alloc")), sel_registerName("init"));

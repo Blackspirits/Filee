@@ -96,6 +96,16 @@ public sealed class UserDataStore
         SettingsChanged?.Invoke(this, EventArgs.Empty);
     }
 
+    /// <summary>
+    /// Remembers the window zoom (<see cref="AppSettings.UiScale"/>) without raising <see cref="SettingsChanged"/>:
+    /// the zoom is already applied, and nothing else changed that would have to be applied again.
+    /// </summary>
+    public void SaveUiScale(double scale)
+    {
+        Settings.UiScale = scale;
+        Write(SettingsPath, Settings, FileeJsonContext.Default.AppSettings);
+    }
+
     public void SaveLibrary()
     {
         EnsureConsistency();
@@ -204,9 +214,10 @@ public sealed class UserDataStore
     /// <summary>The preset <paramref name="id"/> when it converts (a group or tool doesn't), for every place that runs one.</summary>
     public Preset? FindConversion(string id) => Presets.FirstOrDefault(p => p.Id == id && !p.IsGroup && !p.IsTool);
 
-    /// <summary>Exports presets and profiles to a shareable JSON file.</summary>
+    /// <summary>Exports presets and profiles to a shareable JSON file, without PDF passwords.</summary>
     public void Export(string path) =>
-        Write(path, new PresetBundle { Presets = Presets, Profiles = Profiles }, FileeJsonContext.Default.PresetBundle);
+        Write(path, new PresetBundle { Presets = [.. Presets.Select(p => p.WithoutPassword(mark: false))], Profiles = Profiles },
+            FileeJsonContext.Default.PresetBundle);
 
     /// <summary>
     /// Imports presets and profiles from a bundle. Items with an existing id are replaced, new ones added.
@@ -250,12 +261,12 @@ public sealed class UserDataStore
         // conversion to "group": still a group, now an empty one, rather than a conversion that can never run.
         foreach (var preset in Presets.Where(p => !p.IsGroup && p.TargetFormat == Preset.GroupTarget))
             preset.Kind = PresetKind.Group;
-        // A group fans out conversions only (no group or tool in a group), each once, at most MaxSubPresets, and has no
+        // A group fans out conversions and tools (but never another group), each once, at most MaxSubPresets, and has no
         // target format an older Filee could run it with.
-        var conversions = Presets.Where(p => !p.IsGroup && !p.IsTool).Select(p => p.Id).ToHashSet();
+        var actions = Presets.Where(p => !p.IsGroup).Select(p => p.Id).ToHashSet();
         foreach (var group in Presets.Where(p => p.IsGroup))
         {
-            group.SubPresetIds = group.SubPresetIds.Where(conversions.Contains).Distinct().Take(Preset.MaxSubPresets).ToList();
+            group.SubPresetIds = group.SubPresetIds.Where(actions.Contains).Distinct().Take(Preset.MaxSubPresets).ToList();
             group.TargetFormat = Preset.GroupTarget;
         }
 
@@ -750,6 +761,188 @@ internal static class SettingsMigrations
         // v32: logs and script source, Video CD DAT and Workbench archives learn their donuts; custom claims stay put.
         if (from < 32)
             changed |= LearnExtensions(profiles, out _, ["log", "py", "pac", "bat", "command", "dat", "wbpz"]);
+        // v33: HAR network logs and raw H.265 / H.264 camera streams learn their donuts (custom claims stay put), and
+        //      "Trim transparent borders" comes in after "Remove background".
+        if (from < 33)
+        {
+            changed |= LearnExtensions(profiles, out _, ["har", "h265", "265", "hevc", "h264", "264"]);
+            // "Trim transparent borders" after "Remove background", in the library and on the images donut's back face
+            // when it has room and the user hasn't put it there.
+            if (BuiltInData.TrimPresets().Single() is var trim && presets.All(p => p.Id != trim.Id))
+            {
+                var at = presets.FindIndex(p => p.Id == "remove-background");
+                presets.Insert(at < 0 ? presets.Count : at + 1, trim);
+                changed = true;
+            }
+            if (profiles.FirstOrDefault(p => p.Id == "images") is { BackPresetIds: { } back } images
+                && !back.Contains("trim-transparent") && !images.PresetIds.Contains("trim-transparent")
+                && back.Count < ToolbarProfile.MaxSlices)
+            {
+                var after = back.IndexOf("remove-background");
+                back.Insert(after < 0 ? back.Count(id => id != "zip-all") : after + 1, "trim-transparent");
+                changed = true;
+            }
+        }
+        // v34: Lua scripts and CSS style sheets learn the text donut; custom claims stay put.
+        if (from < 34)
+            changed |= LearnExtensions(profiles, out _, ["lua", "css"]);
+        // v35: HP-GL plot files learn their donut; custom claims stay put.
+        if (from < 35)
+            changed |= LearnExtensions(profiles, out _, ["plt", "hpgl", "hpg", "hgl"]);
+        // v36: iCalendar (.ics, .ical) on the data donut, and "iCalendar" (CSV → ICS) after "vCard" on the back of the
+        //      spreadsheets donut when it has room; custom claims stay put.
+        if (from < 36)
+        {
+            changed |= LearnExtensions(profiles, out _, ["ics", "ical"]);
+            changed |= AddCalendarPreset(presets, profiles);
+        }
+        // v37: everyday tools (compress image / video / audio, video from images, extract audio, merge videos / audio,
+        //      remove metadata), after "Motion Photo (Android)" as in a new library, and on the back faces of the
+        //      built-in donuts before "One ZIP" where they have room and the user hasn't put them there already.
+        //      "Extract audio" replaces the plain M4A slice on the video donut's back.
+        if (from < 37)
+            changed |= AddMediaTools(presets, profiles);
+        // v38: Tajima embroidery designs (.dst) learn the vector donut; custom claims stay put.
+        if (from < 38)
+            changed |= LearnExtensions(profiles, out _, ["dst"]);
+        // v39: PowerShell scripts (.ps1) learn the text donut; custom claims stay put.
+        if (from < 39)
+            changed |= LearnExtensions(profiles, out _, ["ps1"]);
+        // v40: "Searchable PDF" (text recognition), after "Compress PDF" as in a new library, on no donut.
+        if (from < 40 && !presets.Any(p => p.Id == "searchable-pdf"))
+        {
+            var at = presets.FindIndex(p => p.Id == "compress-pdf");
+            presets.Insert(at < 0 ? presets.Count : at + 1, BuiltInData.OcrPresets().Single());
+            changed = true;
+        }
+        // v41: PNG/JPEG download aliases learn the images donut; custom claims stay put.
+        if (from < 41)
+            changed |= LearnExtensions(profiles, out _, ["png_large", "jpg_large"]);
+        // v42: the print studio for XLSX → PDF (a tool), after "Crop" as in a new library, and first on the back of the
+        //      spreadsheets donut when it has room and the user hasn't put it on either face.
+        if (from < 42)
+        {
+            const string id = "tool-sheet-studio";
+            if (presets.All(p => p.Id != id))
+            {
+                var at = presets.FindIndex(p => p.Id == "tool-crop");
+                presets.Insert(at < 0 ? presets.Count : at + 1, BuiltInData.CreatePresets().Single(p => p.Id == id));
+                changed = true;
+            }
+            if (profiles.FirstOrDefault(p => p.Id == "spreadsheets") is { BackPresetIds: { } back } spreadsheets
+                && !back.Contains(id) && !spreadsheets.PresetIds.Contains(id) && back.Count < ToolbarProfile.MaxSlices)
+            {
+                back.Insert(0, id);
+                changed = true;
+            }
+        }
+        // v43: FITS astronomy pictures (.fits, .fts) learn the images donut; custom claims stay put. (Schema 43 may be
+        //      renumbered if another change takes it first.)
+        if (from < 43)
+            changed |= LearnExtensions(profiles, out _, ["fits", "fts"]);
+        // v44: CRI USM game videos (.usm) learn the video donut; custom claims stay put.
+        if (from < 44)
+            changed |= LearnExtensions(profiles, out _, ["usm"]);
+        // v45: "Cut a clip" (a part of a video as a file of its own), after "Motion Photo (Android)" as in a new library,
+        //      and first on the back of the video donut in place of FLAC (which stays in the library), when the user
+        //      hasn't put it elsewhere on the donut and the face has room.
+        //      Present already but saved since by a Filee before 45: that one dropped the tool's name, which made it a
+        //      crop, so it is put back. The user's own changes (name, file name pattern) stay.
+        if (from < 45)
+            changed |= AddClipTool(presets, profiles);
+        // v46: one "Edit" slice on the back of the PDF donut fans out the common lossless page tools. Existing
+        //      customised backs keep their layout; the group is offered at the start when there is room.
+        if (from < 46)
+        {
+            var ids = new[] { "tool-pdf-crop", "tool-pdf-pages", "tool-pdf-add", "pdf-rotate-left", "pdf-rotate-right", "pdf-edit" };
+            var defaults = BuiltInData.CreatePresets();
+            foreach (var id in ids.Where(id => presets.All(p => p.Id != id)))
+            {
+                var item = defaults.Single(p => p.Id == id);
+                var at = defaults.FindIndex(p => p.Id == id);
+                var after = defaults.Take(at).Select(p => presets.FindIndex(existing => existing.Id == p.Id)).LastOrDefault(i => i >= 0, -1);
+                presets.Insert(after + 1, item);
+                changed = true;
+            }
+            if (profiles.FirstOrDefault(p => p.Id == "pdf") is { BackPresetIds: { } back } pdf
+                && !pdf.PresetIds.Contains("pdf-edit") && !back.Contains("pdf-edit")
+                && back.Count < ToolbarProfile.MaxSlices)
+            {
+                back.Insert(0, "pdf-edit");
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private static bool AddCalendarPreset(List<Preset> presets, List<ToolbarProfile> profiles)
+    {
+        var changed = false;
+        if (presets.All(p => p.Id != "to-ics"))
+        {
+            var preset = BuiltInData.DataPresets().Single(p => p.Id == "to-ics");
+            var after = presets.FindIndex(p => p.Id == "to-vcf");
+            presets.Insert(after < 0 ? presets.Count : after + 1, preset);
+            changed = true;
+        }
+
+        if (profiles.FirstOrDefault(p => p.Id == "spreadsheets") is { BackPresetIds: { } back }
+            && !back.Contains("to-ics") && back.Count < ToolbarProfile.MaxSlices)
+        {
+            var after = back.IndexOf("to-vcf");
+            var beforeZip = back.IndexOf("zip-all");
+            back.Insert(after >= 0 ? after + 1 : beforeZip >= 0 ? beforeZip : back.Count, "to-ics");
+            changed = true;
+        }
+        return changed;
+    }
+
+    /// <summary>Where schema 37 offers its tools: (donut, presets for its back face).</summary>
+    private static readonly (string Profile, string[] Presets)[] Version37Offers =
+    [
+        ("images", ["compress-image", "remove-metadata"]),
+        ("pdf", ["remove-metadata"]),
+        ("video", ["compress-video", "merge-videos", "extract-audio"]),
+        ("audio", ["compress-audio", "merge-audio", "remove-metadata"]),
+    ];
+
+    private static bool AddMediaTools(List<Preset> presets, List<ToolbarProfile> profiles)
+    {
+        var changed = false;
+        var at = presets.FindLastIndex(p => p.Id is "motion-photo-android" or "live-photo-iphone" or "extract-motion");
+        at = at < 0 ? presets.Count : at + 1;
+        foreach (var tool in BuiltInData.MediaToolPresets())
+        {
+            if (presets.Any(p => p.Id == tool.Id))
+                continue;
+            presets.Insert(Math.Min(at++, presets.Count), tool);
+            changed = true;
+        }
+        foreach (var (profileId, ids) in Version37Offers)
+        {
+            if (profiles.FirstOrDefault(p => p.Id == profileId) is not { BackPresetIds: { } back } profile)
+                continue;
+            // "Extract audio" writes the same M4A as the plain M4A slice, copying the sound where it can: it takes that
+            // slice's place on the video donut's back, or comes in with the other tools when there is room.
+            if (profileId == "video" && !back.Contains("extract-audio") && !profile.PresetIds.Contains("extract-audio")
+                && presets.Any(p => p.Id == "extract-audio"))
+            {
+                var m4a = back.IndexOf("to-m4a");
+                if (m4a >= 0)
+                {
+                    back[m4a] = "extract-audio";
+                    changed = true;
+                }
+            }
+            foreach (var id in ids)
+            {
+                if (back.Contains(id) || profile.PresetIds.Contains(id) || back.Count >= ToolbarProfile.MaxSlices
+                    || presets.All(p => p.Id != id))
+                    continue;
+                InsertBefore(back, id, "zip-all");
+                changed = true;
+            }
+        }
         return changed;
     }
 
@@ -767,6 +960,40 @@ internal static class SettingsMigrations
         {
             profile.BackPresetIds = (defaults[profile.Id].BackPresetIds ?? []).Where(ids.Contains).ToList();
             changed = true;
+        }
+        return changed;
+    }
+
+    private static bool AddClipTool(List<Preset> presets, List<ToolbarProfile> profiles)
+    {
+        var changed = false;
+        var clip = BuiltInData.ClipPresets().Single();
+        if (presets.FirstOrDefault(p => p.Id == clip.Id) is { } existing)
+        {
+            if (!existing.IsClipTool)
+            {
+                existing.Kind = PresetKind.Tool;
+                existing.Tool = Preset.ClipTool;
+                existing.TargetFormat = clip.TargetFormat;
+                existing.SubPresetIds = [];
+                changed = true;
+            }
+        }
+        else
+        {
+            var at = presets.FindLastIndex(p => p.Id is "motion-photo-android" or "live-photo-iphone" or "extract-motion");
+            presets.Insert(at < 0 ? presets.Count : at + 1, clip);
+            changed = true;
+        }
+        if (profiles.FirstOrDefault(p => p.Id == "video") is { BackPresetIds: { } back } video
+            && !back.Contains(clip.Id) && !video.PresetIds.Contains(clip.Id))
+        {
+            changed |= back.Remove("to-flac");
+            if (back.Count < ToolbarProfile.MaxSlices)
+            {
+                back.Insert(0, clip.Id);
+                changed = true;
+            }
         }
         return changed;
     }

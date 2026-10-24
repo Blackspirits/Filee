@@ -51,26 +51,56 @@ public sealed partial class ProfileItemViewModel(ToolbarProfile profile, ILocali
 }
 
 /// <summary>A preset chip in the "available presets" palette.</summary>
-public sealed record PaletteChip(string PresetId, string Label, string? Caption, string? Reason = null)
+public enum PaletteTab { All, Image, Document, Media, Edit, Model3DCad, Map, Archive, Font }
+
+public sealed record PaletteTabItem(PaletteTab Id, string Label);
+
+public sealed record PaletteChip(string PresetId, string Label, string? Caption, string? Reason = null,
+    PresetUse Use = PresetUse.Usable)
 {
-    public bool IsDimmed => Reason is not null;
+    public bool IsDimmed => Use != PresetUse.Usable;
+    public bool CanAdd => Use != PresetUse.Unusable;
 }
 
 public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
 {
+    internal static readonly (PaletteTab Id, string LabelKey, FormatCategory[] Categories)[] TabDefinitions =
+    [
+        (PaletteTab.All, "toolbar.tab.all", []),
+        (PaletteTab.Image, "format.category.Image", [FormatCategory.Image, FormatCategory.Vector]),
+        (PaletteTab.Document, "format.category.Document", [FormatCategory.Pdf, FormatCategory.Document,
+            FormatCategory.Spreadsheet, FormatCategory.Presentation, FormatCategory.Hwp, FormatCategory.Text,
+            FormatCategory.Ebook, FormatCategory.Data]),
+        (PaletteTab.Media, "toolbar.tab.media", [FormatCategory.Video, FormatCategory.Audio, FormatCategory.Subtitle]),
+        (PaletteTab.Edit, "toolbar.tab.edit", []),
+        (PaletteTab.Model3DCad, "toolbar.tab.model3d_cad", [FormatCategory.Model3D, FormatCategory.Cad]),
+        (PaletteTab.Map, "format.category.Geo", [FormatCategory.Geo]),
+        (PaletteTab.Archive, "format.category.Archive", [FormatCategory.Archive]),
+        (PaletteTab.Font, "format.category.Font", [FormatCategory.Font]),
+    ];
+
     private readonly UserDataStore _store;
     private readonly ILocalizer _loc;
     private readonly WindowService _windows;
     private readonly PresetAvailability _availability;
     private readonly ConverterCatalog _catalog;
     private readonly ILogger<ToolbarPageViewModel> _log;
-    private PresetAvailability.PaletteSession? _session;
-    private readonly Dictionary<string, PresetJudgement> _judged = [];
+    private sealed class PaletteJudging
+    {
+        public Dictionary<string, PresetJudgement> Judged { get; } = [];
+        public PresetAvailability.PaletteSession? Session { get; set; }
+    }
+
+    private readonly Dictionary<string, PaletteJudging> _judgingByProfile = [];
     private object? _pass;
     private bool _disposed;
+    private bool _savingOwnLibrary;
     private static readonly TimeSpan JudgeSlice = TimeSpan.FromMilliseconds(8);
     private bool _loading;
     private bool _repositioning;
+    private string? _newPresetToSelect;
+    private PaletteTab? _pendingTabRestore;
+    private bool _updatingTabs;
 
     public ToolbarPageViewModel(UserDataStore store, ILocalizer loc, WindowService windows,
         PresetAvailability availability, ConverterCatalog catalog, ILogger<ToolbarPageViewModel> log)
@@ -83,7 +113,6 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         _log = log;
         // A profile is found by its name or by an extension it handles ("png" finds the photo donut).
         VisibleProfiles = new FilteredList<ProfileItemViewModel>(Profiles, p => [p.Name, .. p.Profile.Extensions]);
-        VisiblePalette = new FilteredList<PaletteChip>(Palette, c => [c.Label, c.Caption]);
         foreach (var profile in store.Profiles)
             Profiles.Add(new ProfileItemViewModel(profile, loc));
 
@@ -103,45 +132,115 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
             ways.Add(loc["toolbar.face_hint_wheel"]);
         FaceHint = ways.Count == 0 ? loc["toolbar.face_hint_off"] : loc.Format("toolbar.face_hint", string.Join(" / ", ways));
         _catalog.Changed += OnCatalogChanged;
+        _store.LibraryChanged += OnLibraryChanged;
     }
 
     public void Dispose()
     {
         _disposed = true;
         _catalog.Changed -= OnCatalogChanged;
+        _store.LibraryChanged -= OnLibraryChanged;
         StopJudging();
+        _judgingByProfile.Clear();
     }
 
     private void StopJudging()
     {
         _pass = null;
-        _session = null;
     }
 
-    private void ForgetJudgements()
+    private void ForgetJudgements(string? profileId = null)
     {
         StopJudging();
-        _judged.Clear();
+        if (profileId is null)
+            _judgingByProfile.Clear();
+        else
+            _judgingByProfile.Remove(profileId);
     }
 
     private void OnCatalogChanged(object? sender, EventArgs e) =>
         Dispatcher.UIThread.Post(() => { if (_disposed) return; ForgetJudgements(); Rebuild(); });
+
+    private void OnLibraryChanged(object? sender, EventArgs e)
+    {
+        if (_disposed)
+            return;
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(InvalidateExternalLibrary);
+            return;
+        }
+        if (!_savingOwnLibrary)
+            InvalidateExternalLibrary();
+    }
+
+    private void InvalidateExternalLibrary()
+    {
+        if (_disposed)
+            return;
+        _pendingTabRestore ??= SelectedTab is { Id: not PaletteTab.All } tab ? tab.Id : null;
+        ForgetJudgements();
+        Rebuild();
+    }
+
+    private T SaveOwnLibrary<T>(Func<T> action)
+    {
+        var previous = _savingOwnLibrary;
+        _savingOwnLibrary = true;
+        try
+        {
+            DuringOwnSave?.Invoke();
+            return action();
+        }
+        finally { _savingOwnLibrary = previous; }
+    }
+
+    private void SaveOwnLibrary() => SaveOwnLibrary(() => { _store.SaveLibrary(); return true; });
+
+    internal Action? DuringOwnSave { get; set; }
+
+    internal Action<string, string>? JudgementObserved { get; set; }
+    internal bool HasJudgement(string profileId, string presetId) =>
+        _judgingByProfile.TryGetValue(profileId, out var judging) && judging.Judged.ContainsKey(presetId);
+
+    internal static PaletteTab TabOf(Preset preset)
+    {
+        if (preset.IsTool || preset.TargetFormat == BuiltInData.SameAsSource)
+            return PaletteTab.Edit;
+        var category = FormatRegistry.FindById(preset.TargetFormat)?.Category;
+        return category is { } value
+            ? TabDefinitions.First(t => t.Categories.Contains(value)).Id
+            : PaletteTab.All;
+    }
 
     /// <summary>Under the Front / Back switch: what flips the open donut (or that nothing does).</summary>
     public string FaceHint { get; }
 
     public ObservableCollection<ProfileItemViewModel> Profiles { get; } = [];
     public ObservableCollection<PaletteChip> Palette { get; } = [];
+    public ObservableCollection<PaletteTabItem> Tabs { get; } = [];
+    public ObservableCollection<PaletteChip> VisiblePalette { get; } = [];
 
-    /// <summary>The profiles and the presets the search boxes above the two lists let through.</summary>
+    /// <summary>The profiles the search box above the list lets through.</summary>
     public FilteredList<ProfileItemViewModel> VisibleProfiles { get; }
-    public FilteredList<PaletteChip> VisiblePalette { get; }
 
     [ObservableProperty] private string _profileSearch = "";
     [ObservableProperty] private string _paletteSearch = "";
+    [ObservableProperty] private PaletteTabItem? _selectedTab;
+    [ObservableProperty] private bool _showTabRow;
 
     partial void OnProfileSearchChanged(string value) => VisibleProfiles.Query = value;
-    partial void OnPaletteSearchChanged(string value) => VisiblePalette.Query = value;
+    partial void OnPaletteSearchChanged(string value)
+    {
+        _pendingTabRestore = null;
+        Rebuild();
+    }
+    partial void OnSelectedTabChanged(PaletteTabItem? value)
+    {
+        if (!_updatingTabs)
+            _pendingTabRestore = null;
+        RefreshVisiblePalette();
+    }
 
     [ObservableProperty] private ProfileItemViewModel? _selectedProfile;
     [ObservableProperty] private IReadOnlyList<DonutItem> _donutItems = [];
@@ -211,7 +310,10 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         // A search typed for the last donut's presets would hide this one's (#427).
         PaletteSearch = "";
         RebuildProfileEditor();
-        ForgetJudgements();
+        StopJudging();
+        _newPresetToSelect = null;
+        _pendingTabRestore = null;
+        SelectedTab = null;
         Rebuild();
     }
 
@@ -222,7 +324,7 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         Profile.Name = value.Trim();
         SelectedProfile!.Refresh(_loc);
         CenterTitle = value.Trim();
-        _store.SaveLibrary();
+        SaveOwnLibrary();
     }
 
     partial void OnIsMixedChanged(bool value)
@@ -237,7 +339,7 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         // The extensions are kept either way: chips become checks and back, so switching is harmless.
         item.Profile.IsFallback = value;
         Reposition(item);
-        _store.SaveLibrary();
+        SaveOwnLibrary();
         item.Refresh(_loc);
         RebuildProfileEditor();
     }
@@ -280,8 +382,8 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
 
     private void OnExtensionsSaved()
     {
-        _store.SaveLibrary();
-        ForgetJudgements();
+        SaveOwnLibrary();
+        ForgetJudgements(Profile?.Id);
         Rebuild();
     }
 
@@ -361,7 +463,9 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
 
     internal void PresetEdited(Preset preset)
     {
-        _judged.Remove(preset.Id);
+        StopJudging();
+        foreach (var judging in _judgingByProfile.Values)
+            judging.Judged.Remove(preset.Id);
         Commit();
     }
 
@@ -395,6 +499,8 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         _store.Presets.Add(preset);
         if (Slices is { Count: < ToolbarProfile.MaxSlices } slices)
             slices.Add(preset.Id);
+        else
+            _newPresetToSelect = preset.Id;
         Commit();
     }
 
@@ -406,7 +512,7 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         var index = _store.Profiles.FindIndex(p => p.IsFallback);
         index = index < 0 ? _store.Profiles.Count : index;
         _store.Profiles.Insert(index, profile);
-        _store.SaveLibrary();
+        SaveOwnLibrary();
         var item = new ProfileItemViewModel(profile, _loc);
         Profiles.Insert(index, item);
         SelectedProfile = item;
@@ -420,7 +526,10 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         if (!await _windows.ConfirmAsync(_windows.Main, _loc["toolbar.delete_profile"] + "?", destructive: true))
             return;
         _store.Profiles.Remove(Profile);
-        _store.SaveLibrary();
+        var id = Profile.Id;
+        _judgingByProfile.Remove(id);
+        StopJudging();
+        SaveOwnLibrary();
         Profiles.Remove(SelectedProfile!);
         SelectedProfile = Profiles.FirstOrDefault();
     }
@@ -438,7 +547,7 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
     /// <summary>Puts a built-in profile back to its defaults (see <see cref="UserDataStore.ResetProfile"/>).</summary>
     internal void Reset(ProfileItemViewModel item)
     {
-        if (!_store.ResetProfile(item.Profile))
+        if (!SaveOwnLibrary(() => _store.ResetProfile(item.Profile)))
             return;
         // A profile that changed kind moved to the border between the normal and the mixed ones.
         var from = Profiles.IndexOf(item);
@@ -464,13 +573,13 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         foreach (var other in Profiles)
             other.Refresh(_loc);
         RebuildProfileEditor();
-        ForgetJudgements();
+        ForgetJudgements(item.Profile.Id);
         Rebuild();
     }
 
     private void Commit()
     {
-        _store.SaveLibrary();
+        SaveOwnLibrary();
         // Every profile: deleting a group (or a preset) takes it off every donut, not just this one.
         foreach (var item in Profiles)
             item.Refresh(_loc);
@@ -485,26 +594,45 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         DonutItems = used
             .Select(_store.FindPreset)
             .OfType<Preset>()
-            .Select(p => new DonutItem { Id = p.Id, Label = _loc.DisplayName(p), Caption = Caption(p) })
+            .Select(p => new DonutItem { Id = p.Id, Label = _loc.DonutName(p), Caption = Caption(p) })
             .ToList();
 
         Palette.Clear();
         var placed = profile is null ? [] : profile.PresetIds.Concat(profile.BackPresetIds ?? []).ToHashSet();
         var judge = profile is { Extensions.Count: > 0 };
+        _judgingByProfile.TryGetValue(profile?.Id ?? "", out var judging);
         var pending = false;
+        var query = PaletteSearch.Trim();
+        if (_newPresetToSelect is { } newId && (!judge || judging?.Judged.ContainsKey(newId) == true)
+            && _store.FindPreset(newId) is { } newPreset)
+        {
+            var newName = _loc.DisplayName(newPreset);
+            if (judge && judging!.Judged[newId].Use == PresetUse.Unusable && query != newName)
+            {
+                PaletteSearch = newName;
+                return;
+            }
+            if (query.Length > 0 && !newName.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                && (Caption(newPreset)?.Contains(query, StringComparison.CurrentCultureIgnoreCase) != true))
+            {
+                PaletteSearch = "";
+                return;
+            }
+        }
+        var candidates = new List<(PaletteChip Chip, PaletteTab Tab, bool Group)>();
         // Groups first: few, and otherwise at the very end, below every conversion.
         foreach (var preset in _store.Presets.Where(p => !placed.Contains(p.Id)).OrderBy(p => !p.IsGroup))
         {
             string? reason = null;
+            var use = PresetUse.Usable;
             if (judge && !preset.IsGroup)
             {
-                if (!_judged.TryGetValue(preset.Id, out var judgement))
+                if (judging is null || !judging.Judged.TryGetValue(preset.Id, out var judgement))
                 {
                     pending = true;
                     continue;
                 }
-                if (judgement.Use == PresetUse.Unusable)
-                    continue;
+                use = judgement.Use;
                 reason = judgement.Reason;
             }
             var label = _loc.DisplayName(preset);
@@ -512,13 +640,67 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
             // "GIF  GIF" says nothing twice: only show the format when the name doesn't already.
             if (caption is not null && label.Contains(caption, StringComparison.OrdinalIgnoreCase))
                 caption = null;
-            Palette.Add(new PaletteChip(preset.Id, label, caption, reason));
+            var chip = new PaletteChip(preset.Id, label, caption, reason, use);
+            if (use != PresetUse.Unusable)
+                Palette.Add(chip);
+            if ((query.Length == 0 && use != PresetUse.Unusable)
+                || (query.Length > 0 && (label.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                    || caption?.Contains(query, StringComparison.CurrentCultureIgnoreCase) == true)))
+                candidates.Add((chip, preset.IsGroup ? PaletteTab.All : TabOf(preset), preset.IsGroup));
         }
         if (pending && _pass is null && !_disposed)
         {
             var pass = _pass = new object();
-            Dispatcher.UIThread.Post(() => JudgeSome(pass), DispatcherPriority.Background);
+            var profileId = profile!.Id;
+            Dispatcher.UIThread.Post(() => JudgeSome(pass, profileId), DispatcherPriority.Background);
         }
+        var selected = SelectedTab?.Id ?? PaletteTab.All;
+        var active = candidates.Where(c => !c.Group).Select(c => c.Tab).ToHashSet();
+        var wanted = TabDefinitions.Where(t => t.Id == PaletteTab.All || active.Contains(t.Id)).ToList();
+        _updatingTabs = true;
+        try
+        {
+            for (var i = Tabs.Count - 1; i >= 0; i--)
+                if (!wanted.Any(t => t.Id == Tabs[i].Id))
+                    Tabs.RemoveAt(i);
+            for (var i = 0; i < wanted.Count; i++)
+            {
+                if (i < Tabs.Count && Tabs[i].Id == wanted[i].Id)
+                    continue;
+                var existing = Tabs.FirstOrDefault(t => t.Id == wanted[i].Id);
+                if (existing is not null)
+                    Tabs.Move(Tabs.IndexOf(existing), i);
+                else
+                    Tabs.Insert(i, new PaletteTabItem(wanted[i].Id, _loc[wanted[i].LabelKey]));
+            }
+            var allIds = candidates.Where(c => !c.Group).Select(c => c.Chip.PresetId).ToHashSet();
+            ShowTabRow = Tabs.Count > 2 || (Tabs.Count == 2
+                && !allIds.SetEquals(candidates.Where(c => !c.Group && c.Tab == Tabs[1].Id)
+                    .Select(c => c.Chip.PresetId)));
+            if (_newPresetToSelect is { } addedId && candidates.FirstOrDefault(c => c.Chip.PresetId == addedId) is { Chip: not null } added)
+            {
+                if (added.Chip.Use == PresetUse.Unusable && query != added.Chip.Label)
+                {
+                    PaletteSearch = added.Chip.Label;
+                    return;
+                }
+                _newPresetToSelect = null;
+                selected = added.Tab;
+            }
+            if (!pending && _pendingTabRestore is { } restore)
+            {
+                selected = restore;
+                _pendingTabRestore = null;
+            }
+            if (!ShowTabRow || !wanted.Any(t => t.Id == selected))
+                selected = PaletteTab.All;
+            SelectedTab = Tabs.First(t => t.Id == selected);
+        }
+        finally
+        {
+            _updatingTabs = false;
+        }
+        RefreshVisiblePalette(candidates);
 
         CenterTitle = profile is null ? "" : _loc.DisplayName(profile);
         CenterSubtitle = EditingBack
@@ -528,33 +710,65 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(BackCount));
     }
 
-    private void JudgeSome(object pass)
+    private void RefreshVisiblePalette()
     {
-        if (pass != _pass || _disposed)
+        var query = PaletteSearch.Trim();
+        var placed = Profile is null ? [] : Profile.PresetIds.Concat(Profile.BackPresetIds ?? []).ToHashSet();
+        _judgingByProfile.TryGetValue(Profile?.Id ?? "", out var judging);
+        var candidates = new List<(PaletteChip Chip, PaletteTab Tab, bool Group)>();
+        foreach (var preset in _store.Presets.Where(p => !placed.Contains(p.Id)).OrderBy(p => !p.IsGroup))
+        {
+            var judgement = judging?.Judged.GetValueOrDefault(preset.Id) ?? new(PresetUse.Usable, null);
+            if (Profile is { Extensions.Count: > 0 } && !preset.IsGroup && !HasJudgement(Profile.Id, preset.Id))
+                continue;
+            if (judgement.Use == PresetUse.Unusable && query.Length == 0)
+                continue;
+            var label = _loc.DisplayName(preset);
+            var caption = Caption(preset);
+            if (caption is not null && label.Contains(caption, StringComparison.OrdinalIgnoreCase))
+                caption = null;
+            if (query.Length > 0 && !label.Contains(query, StringComparison.CurrentCultureIgnoreCase)
+                && caption?.Contains(query, StringComparison.CurrentCultureIgnoreCase) != true)
+                continue;
+            candidates.Add((new PaletteChip(preset.Id, label, caption, judgement.Reason, judgement.Use),
+                preset.IsGroup ? PaletteTab.All : TabOf(preset), preset.IsGroup));
+        }
+        RefreshVisiblePalette(candidates);
+    }
+
+    private void RefreshVisiblePalette(List<(PaletteChip Chip, PaletteTab Tab, bool Group)> candidates)
+    {
+        var tab = SelectedTab?.Id ?? PaletteTab.All;
+        var wanted = candidates.Where(c => c.Group || tab == PaletteTab.All || c.Tab == tab).Select(c => c.Chip).ToList();
+        VisiblePalette.Clear();
+        foreach (var chip in wanted)
+            VisiblePalette.Add(chip);
+    }
+
+    private void JudgeSome(object pass, string profileId)
+    {
+        if (pass != _pass || _disposed || Profile?.Id != profileId)
             return;
         var profile = Profile;
-        if (profile is null)
-        {
-            _pass = null;
-            Rebuild();
-            return;
-        }
+        if (!_judgingByProfile.TryGetValue(profileId, out var judging))
+            _judgingByProfile[profileId] = judging = new PaletteJudging();
         var placed = profile.PresetIds.Concat(profile.BackPresetIds ?? []).ToHashSet();
-        var pending = _store.Presets.Where(p => !p.IsGroup && !placed.Contains(p.Id) && !_judged.ContainsKey(p.Id)).ToList();
+        var pending = _store.Presets.Where(p => !p.IsGroup && !placed.Contains(p.Id) && !judging.Judged.ContainsKey(p.Id)).ToList();
         if (pending.Count > 0)
         {
-            _session ??= _availability.ForPalette(profile.Extensions.Select(FormatRegistry.FindByExtension)
+            judging.Session ??= _availability.ForPalette(profile.Extensions.Select(FormatRegistry.FindByExtension)
                 .OfType<FileFormat>().DistinctBy(f => f.Id).ToList());
             var clock = Stopwatch.StartNew();
             foreach (var preset in pending)
             {
-                _judged[preset.Id] = JudgeOne(preset);
+                judging.Judged[preset.Id] = JudgeOne(judging.Session, preset);
+                JudgementObserved?.Invoke(profileId, preset.Id);
                 if (clock.Elapsed >= JudgeSlice)
                     break;
             }
         }
-        if (_store.Presets.Any(p => !p.IsGroup && !placed.Contains(p.Id) && !_judged.ContainsKey(p.Id)))
-            Dispatcher.UIThread.Post(() => JudgeSome(pass), DispatcherPriority.Background);
+        if (_store.Presets.Any(p => !p.IsGroup && !placed.Contains(p.Id) && !judging.Judged.ContainsKey(p.Id)))
+            Dispatcher.UIThread.Post(() => JudgeSome(pass, profileId), DispatcherPriority.Background);
         else
         {
             _pass = null;
@@ -564,11 +778,11 @@ public sealed partial class ToolbarPageViewModel : ObservableObject, IDisposable
 
     // A preset whose judging throws stays usable (not dimmed) and the rest go on: this runs as a dispatcher job, where an
     // exception would end Filee.
-    private PresetJudgement JudgeOne(Preset preset)
+    private PresetJudgement JudgeOne(PresetAvailability.PaletteSession session, Preset preset)
     {
         try
         {
-            return _session!.Judge(preset);
+            return session.Judge(preset);
         }
         catch (Exception ex) when (ex is not OutOfMemoryException)
         {

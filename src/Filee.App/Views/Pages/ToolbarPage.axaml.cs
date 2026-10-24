@@ -12,6 +12,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 using Filee.App.Controls;
 using Filee.App.ViewModels.Pages;
 
@@ -23,7 +24,8 @@ public partial class ToolbarPage : UserControl
 
     private enum Source { Chip, Slice }
 
-    private sealed record DragState(Source Source, string? PresetId, int SliceIndex, string Label, Point Start)
+    // CanAdd: fixed when the drag starts, so a chip that a search or a tab swaps under the pointer can't change it.
+    private sealed record DragState(Source Source, string? PresetId, int SliceIndex, string Label, Point Start, bool CanAdd = true)
     {
         public bool Active { get; set; }
     }
@@ -39,6 +41,8 @@ public partial class ToolbarPage : UserControl
         Root.AddHandler(PointerMovedEvent, OnRootPointerMoved, RoutingStrategies.Tunnel, handledEventsToo: true);
         Root.AddHandler(PointerReleasedEvent, OnRootPointerReleased, RoutingStrategies.Tunnel, handledEventsToo: true);
         Root.AddHandler(PointerCaptureLostEvent, (_, _) => EndDrag(), RoutingStrategies.Tunnel, handledEventsToo: true);
+        // Before the list box, which doesn't move between the rows of its wrap panel.
+        PaletteTabs.AddHandler(KeyDownEvent, OnTabsKeyDown, RoutingStrategies.Tunnel);
 
         Donut.SegmentDragStarted += (_, e) =>
         {
@@ -76,6 +80,25 @@ public partial class ToolbarPage : UserControl
 
     private ToolbarPageViewModel? Vm => DataContext as ToolbarPageViewModel;
 
+    /// <summary>Down / Up in the wrapped tab row: the tab on the next / previous row nearest below / above this one.</summary>
+    private void OnTabsKeyDown(object? sender, KeyEventArgs e)
+    {
+        if (e.Key is not (Key.Down or Key.Up) || e.KeyModifiers != KeyModifiers.None ||
+            (e.Source as Visual)?.FindAncestorOfType<ListBoxItem>(includeSelf: true) is not { } from)
+            return;
+        var down = e.Key == Key.Down;
+        var tabs = PaletteTabs.GetRealizedContainers().OfType<ListBoxItem>().ToList();
+        var beyond = tabs.Where(t => down ? t.Bounds.Top >= from.Bounds.Bottom - 0.5 : t.Bounds.Bottom <= from.Bounds.Top + 0.5).ToList();
+        if (beyond.Count == 0)
+            return;
+        var row = down ? beyond.Min(t => t.Bounds.Top) : beyond.Max(t => t.Bounds.Top);
+        var to = beyond.Where(t => Math.Abs(t.Bounds.Top - row) < 0.5)
+            .MinBy(t => Math.Abs(t.Bounds.Center.X - from.Bounds.Center.X))!;
+        PaletteTabs.SelectedIndex = PaletteTabs.IndexFromContainer(to);
+        to.Focus(NavigationMethod.Directional);
+        e.Handled = true;
+    }
+
     private void OnChipPressed(object? sender, PointerPressedEventArgs e)
     {
         if (sender is not Border { DataContext: PaletteChip chip } border)
@@ -87,10 +110,11 @@ public partial class ToolbarPage : UserControl
             e.Handled = true;
             return;
         }
-        if (!point.Properties.IsLeftButtonPressed)
+        // A preset this donut can't run (shown by a search) can be edited, not added.
+        if (!point.Properties.IsLeftButtonPressed || !chip.CanAdd)
             return;
 
-        _drag = new DragState(Source.Chip, chip.PresetId, -1, chip.Label, e.GetPosition(Root));
+        _drag = new DragState(Source.Chip, chip.PresetId, -1, chip.Label, e.GetPosition(Root), chip.CanAdd);
         e.Pointer.Capture(border);
         e.Handled = true;
     }
@@ -98,7 +122,7 @@ public partial class ToolbarPage : UserControl
     /// <summary>Double-clicking a chip appends it to the donut.</summary>
     private void OnChipDoubleTapped(object? sender, TappedEventArgs e)
     {
-        if (sender is Border { DataContext: PaletteChip chip } && Vm is { } vm)
+        if (sender is Border { DataContext: PaletteChip { CanAdd: true } chip } && Vm is { } vm)
             vm.Insert(chip.PresetId, vm.SliceCount);
     }
 
@@ -132,7 +156,7 @@ public partial class ToolbarPage : UserControl
             var (sliceTarget, overPalette) = FindTarget(e);
             switch (drag.Source)
             {
-                case Source.Chip when sliceTarget >= 0:
+                case Source.Chip when drag.CanAdd && sliceTarget >= 0:
                     vm.Insert(drag.PresetId!, sliceTarget);
                     break;
                 case Source.Slice when overPalette:

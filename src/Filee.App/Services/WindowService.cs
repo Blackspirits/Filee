@@ -7,6 +7,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 using Filee.App.ViewModels;
 using Filee.App.Views;
+using Filee.Core.Conversion;
+using Filee.Core.Formats;
 using Filee.Core.Localization;
 using Filee.Core.Presets;
 using Filee.Core.Settings;
@@ -22,6 +24,8 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
     private ToastWindow? _toast;
     private EngineSetupWindow? _engineSetup;
     private UpdateNoticeWindow? _updateNotice;
+    private UpdateProgressWindow? _updateProgress;
+    internal UpdateProgressWindow? UpdateProgress => _updateProgress;
     private EngineUpdateNoticeWindow? _engineNotice;
     private FeedbackNoticeWindow? _feedbackNotice;
     private FormatRequestNoticeWindow? _formatRequestNotice;
@@ -30,15 +34,26 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
     internal FormatRequestNoticeWindow? FormatRequestNotice => _formatRequestNotice;
 
     private CropOverlayWindow? _cropOverlay;
+    private ClipWindow? _clipWindow;
+
+    internal ClipWindow? ClipWindow => _clipWindow;
+    private readonly HashSet<SpreadsheetPrintStudioWindow> _spreadsheetStudios = [];
+
+    internal IReadOnlyCollection<SpreadsheetPrintStudioWindow> SpreadsheetStudios => _spreadsheetStudios;
     private MergeOrderWindow? _mergeOrder;
+    private PdfPageEditorWindow? _pdfPageEditor;
 
     internal MergeOrderWindow? MergeOrder => _mergeOrder;
+    internal PdfPageEditorWindow? PdfPageEditor => _pdfPageEditor;
+
+    private void PrepareWindow(Window window) => services.GetService<ThemeService>()?.ApplyWindowClass(window);
 
     /// <summary>Reviews the order of a PDF merge. Closing or cancelling starts no conversion.</summary>
     public async Task<IReadOnlyList<string>?> ChooseMergeOrderAsync(IReadOnlyList<string> files)
     {
         _mergeOrder?.Close();
         var dialog = new MergeOrderWindow { DataContext = new MergeOrderViewModel(files) };
+        PrepareWindow(dialog);
         var closed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         dialog.Closed += (_, _) =>
         {
@@ -54,6 +69,59 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
 
     public MainWindow? Main => _main;
 
+    /// <summary>
+    /// Opens the window of a tool preset (crop, cut a clip, the spreadsheet print studio: one per workbook, the PDF page
+    /// editor) on the files. A tool this version doesn't know opens nothing.
+    /// </summary>
+    public void ShowTool(IReadOnlyList<string> files, Preset preset, PixelPoint? near = null)
+    {
+        if (preset.IsClipTool)
+            ShowClipWindow(files, preset, near);
+        // Before the crop: the print studio and the PDF page tools have no Tool of their own, which reads as a crop
+        // ("Crop PDF" is one and opens the crop overlay).
+        else if (preset.Id == "tool-sheet-studio")
+        {
+            foreach (var workbook in files.Where(file => Path.GetExtension(file).Equals(".xlsx", StringComparison.OrdinalIgnoreCase)))
+                ShowSpreadsheetPrintStudio(workbook);
+        }
+        else if (preset.Id == "tool-pdf-pages")
+            ShowPdfPageEditor(files, preset);
+        else if (preset.Id == "tool-pdf-add")
+            ShowPdfPageEditor(files, preset, addPages: true);
+        else if (preset.IsCropTool)
+            ShowCropOverlay(files, preset, near);
+    }
+
+    /// <summary>
+    /// Opens the "Cut a clip" window on the videos among the files. Each clip is written by an ordinary conversion,
+    /// shown in the toast.
+    /// </summary>
+    public void ShowClipWindow(IReadOnlyList<string> files, Preset preset, PixelPoint? near = null)
+    {
+        var videos = files.Where(f => FormatRegistry.Detect(f)?.Category == FormatCategory.Video).ToList();
+        if (videos.Count == 0)
+            return;
+        _clipWindow?.Close();
+        var store = services.GetRequiredService<UserDataStore>();
+        var catalog = services.GetRequiredService<ConverterCatalog>();
+        var conversions = services.GetRequiredService<ConversionService>();
+        var log = services.GetService<ILogger<ClipWindowViewModel>>();
+        var vm = new ClipWindowViewModel(videos, preset, loc, store, new FfmpegFrameSource(),
+            path => ClipTool.TargetFor(FormatRegistry.Detect(path)?.Id ?? ClipTool.FallbackTarget, catalog.CreatePlanner()),
+            (path, conversion) => conversions.Start([path], conversion), log);
+        var win = new ClipWindow { DataContext = vm };
+        win.PositionOnScreen(near);
+        win.Closed += (_, _) =>
+        {
+            if (_clipWindow == win)
+                _clipWindow = null;
+            trimmer.Request();
+        };
+        _clipWindow = win;
+        win.Show();
+        win.Activate();
+    }
+
     /// <summary>Opens the interactive crop overlay for the files.</summary>
     public void ShowCropOverlay(IReadOnlyList<string> files, Preset preset, PixelPoint? near = null)
     {
@@ -64,6 +132,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         var log = services.GetService<ILogger<CropOverlayViewModel>>();
         var vm = new CropOverlayViewModel(files, preset, loc, store, log);
         var win = new CropOverlayWindow { DataContext = vm };
+        PrepareWindow(win);
         win.PositionOnScreen(near);
         win.Closed += (_, _) =>
         {
@@ -75,48 +144,133 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         win.Activate();
     }
 
+    /// <summary>Opens the lossless PDF page organiser. The Add-pages action starts with its file picker open.</summary>
+    public void ShowPdfPageEditor(IReadOnlyList<string> files, Preset preset, bool addPages = false)
+    {
+        if (files.Count == 0)
+            return;
+        _pdfPageEditor?.Close();
+        var store = services.GetRequiredService<UserDataStore>();
+        var log = services.GetService<ILogger<PdfPageEditorViewModel>>();
+        var vm = new PdfPageEditorViewModel(files, preset, loc, store, log);
+        var win = new PdfPageEditorWindow { DataContext = vm };
+        PrepareWindow(win);
+        win.Closed += (_, _) =>
+        {
+            if (_pdfPageEditor == win)
+                _pdfPageEditor = null;
+        };
+        if (addPages)
+            win.Opened += async (_, _) => await win.PickAndAddAsync();
+        _pdfPageEditor = win;
+        win.Show();
+        win.Activate();
+    }
+
+    /// <summary>Opens the non-destructive XLSX print studio. One workbook owns one window and print plan.</summary>
+    public void ShowSpreadsheetPrintStudio(string file)
+    {
+        SpreadsheetPrintStudioViewModel vm;
+        try
+        {
+            vm = ActivatorUtilities.CreateInstance<SpreadsheetPrintStudioViewModel>(services, file);
+        }
+        catch (Exception ex) when (ex is not OutOfMemoryException)
+        {
+            services.GetService<ILogger<WindowService>>()?.LogWarning(ex, "Could not open spreadsheet print studio for {File}", file);
+            _ = MessageAsync(null, ex.Message);
+            return;
+        }
+        var window = new SpreadsheetPrintStudioWindow { DataContext = vm };
+        window.Closed += (_, _) =>
+        {
+            _spreadsheetStudios.Remove(window);
+            trimmer.Request();
+        };
+        _spreadsheetStudios.Add(window);
+        window.Show();
+        window.Activate();
+    }
+
     /// <summary>
     /// Shows (or brings to front) the main window, optionally on a page. Going to the tray closes it
-    /// (<see cref="MainWindow.HideToTray"/>): a new one opens where and on the page the last one was.
+    /// (<see cref="MainWindow.HideToTray"/>): a new one opens where and on the page the last one was. There is never
+    /// more than one: a call made while one is being built (a tray click handled meanwhile) goes to that one, and one
+    /// that is being released is left to close while a new one opens.
     /// </summary>
     public void ShowMain(string? page = null)
     {
+        if (_openingMain)
+        {
+            _openingMainPage = page ?? _openingMainPage;
+            return;
+        }
         Motion.Refresh();
+        if (_main is { IsReleased: true })
+            _main = null; // closing for real (or closed): it can't be shown again
         if (_main is null)
         {
-            var model = ActivatorUtilities.CreateInstance<MainWindowViewModel>(services);
-            var main = new MainWindow { DataContext = model };
-            if (_mainPlacement is { } placement)
+            _openingMain = true;
+            _openingMainPage = null;
+            try
             {
-                placement.ApplyTo(main);
-                if (page is null)
-                    model.Navigate(placement.Page);
+                _main = CreateMain(page);
             }
-            main.Closing += (_, _) =>
+            finally
             {
-                // While it is still on screen: the release closes it hidden, when its position may no longer be known.
-                if (main.IsVisible)
-                    _mainPlacement = MainWindowPlacement.Of(main, model, _mainPlacement);
-            };
-            main.Closed += (_, _) =>
-            {
-                if (_main == main)
-                    _main = null;
-                model.Dispose();
-                trimmer.Request();
-            };
-            _main = main;
+                _openingMain = false;
+            }
+            page = _openingMainPage ?? page;
         }
-        if (page is not null && _main.DataContext is MainWindowViewModel vm)
+        var main = _main;
+        // Any other main window still alive goes to the tray (and is released) instead of staying next to this one.
+        foreach (var other in _mains.ToArray())
+            if (other != main && !other.IsReleased)
+                other.HideToTray();
+        if (page is not null && main.DataContext is MainWindowViewModel vm)
             vm.Navigate(page);
 
-        if (!_main.IsVisible)
-            _main.Show();
-        if (_main.WindowState == WindowState.Minimized)
-            _main.WindowState = WindowState.Normal;
-        _main.Activate();
+        if (!main.IsVisible)
+            main.Show();
+        if (main.WindowState == WindowState.Minimized)
+            main.WindowState = WindowState.Normal;
+        main.Activate();
         MainShown?.Invoke(this, EventArgs.Empty);
     }
+
+    private MainWindow CreateMain(string? page)
+    {
+        var model = ActivatorUtilities.CreateInstance<MainWindowViewModel>(services);
+        var main = new MainWindow { DataContext = model };
+        PrepareWindow(main);
+        if (_mainPlacement is { } placement)
+        {
+            placement.ApplyTo(main);
+            if (page is null)
+                model.Navigate(placement.Page);
+        }
+        main.Closing += (_, _) =>
+        {
+            // While it is still on screen: the release closes it hidden, when its position may no longer be known.
+            if (main.IsVisible)
+                _mainPlacement = MainWindowPlacement.Of(main, model, _mainPlacement);
+        };
+        main.Closed += (_, _) =>
+        {
+            _mains.Remove(main);
+            if (_main == main)
+                _main = null;
+            model.Dispose();
+            trimmer.Request();
+        };
+        _mains.Add(main);
+        return main;
+    }
+
+    // Every main window that isn't closed yet: normally just _main, plus one that is being released.
+    private readonly List<MainWindow> _mains = [];
+    private bool _openingMain;
+    private string? _openingMainPage;
 
     /// <summary>Raised whenever <see cref="ShowMain"/> showed the main window (the user opened Filee).</summary>
     public event EventHandler? MainShown;
@@ -130,6 +284,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         _whatsNew?.Close();
         Motion.Refresh();
         var window = new WhatsNewWindow(deck, loc);
+        PrepareWindow(window);
         window.Closed += (_, _) =>
         {
             if (_whatsNew == window)
@@ -167,6 +322,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         if (install is not null && !vm.InstallNow(install))
             return;
         _engineSetup = new EngineSetupWindow { DataContext = vm };
+        PrepareWindow(_engineSetup);
         _engineSetup.Closed += (_, _) => _engineSetup = null;
         _engineSetup.Show();
     }
@@ -174,7 +330,11 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
     /// <summary>Creates the toast window once; it shows and hides itself with the job list.</summary>
     public void EnsureToast()
     {
-        _toast ??= new ToastWindow { DataContext = services.GetRequiredService<ConversionService>() };
+        if (_toast is null)
+        {
+            _toast = new ToastWindow { DataContext = services.GetRequiredService<ConversionService>() };
+            PrepareWindow(_toast);
+        }
     }
 
     /// <summary>Shows the "new version available" card in the bottom-right corner (above a visible toast).</summary>
@@ -187,6 +347,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
                 ? (int)Math.Ceiling(toast.Bounds.Height * (toast.Screens.Primary?.Scaling ?? 1))
                 : 0,
         };
+        PrepareWindow(notice);
         notice.Closed += (_, _) =>
         {
             if (_updateNotice == notice)
@@ -194,6 +355,58 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         };
         _updateNotice = notice;
         notice.Show();
+    }
+
+    /// <summary>
+    /// Starts downloading and installing an update, and opens the progress dialog.
+    /// Used by the sidebar, About page, and tray menu (the update notice has its own progress bar).
+    /// </summary>
+    public async Task StartUpdateAsync(UpdateService updates)
+    {
+        if (updates.IsBusy)
+        {
+            ShowUpdateProgress(updates);
+            return;
+        }
+
+        var update = updates.UpdateAsync();
+        ShowUpdateProgress(updates);
+        await update;
+    }
+
+    /// <summary>Shows the update download progress dialog with a progress bar.</summary>
+    public void ShowUpdateProgress(UpdateService updates)
+    {
+        if (!updates.IsBusy && updates.Step == UpdateStep.Idle)
+            return;
+
+        if (_updateProgress is not null)
+        {
+            _updateProgress.Activate();
+            return;
+        }
+
+        _updateNotice?.Close();
+        var dialog = new UpdateProgressWindow(updates, loc);
+        if (_main is { IsVisible: true } main && main.WindowState != WindowState.Minimized)
+        {
+            dialog.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+            dialog.Show(main);
+        }
+        else
+        {
+            dialog.WindowStartupLocation = WindowStartupLocation.CenterScreen;
+            dialog.ShowInTaskbar = true;
+            dialog.Show();
+        }
+
+        dialog.Closed += (_, _) =>
+        {
+            if (_updateProgress == dialog)
+                _updateProgress = null;
+        };
+        _updateProgress = dialog;
+        dialog.Activate();
     }
 
     /// <summary>
@@ -216,6 +429,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
                 ? (int)Math.Ceiling(update.Bounds.Height * (update.Screens.Primary?.Scaling ?? 1))
                 : 0,
         };
+        PrepareWindow(notice);
         notice.Closed += (_, _) =>
         {
             if (_engineNotice == notice)
@@ -231,6 +445,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         if (_feedbackNotice is not null)
             return;
         _feedbackNotice = new FeedbackNoticeWindow();
+        PrepareWindow(_feedbackNotice);
         _feedbackNotice.Closed += (_, _) => _feedbackNotice = null;
         _feedbackNotice.Show();
     }
@@ -241,7 +456,9 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
         if (_elevationNoticeShown)
             return;
         _elevationNoticeShown = true;
-        new ElevationNoticeWindow(services.GetRequiredService<ElevationService>()).Show();
+        var elevation = new ElevationNoticeWindow(services.GetRequiredService<ElevationService>());
+        PrepareWindow(elevation);
+        elevation.Show();
     }
 
     private bool _elevationNoticeShown;
@@ -253,6 +470,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
     {
         _formatRequestNotice?.Close();
         var notice = new FormatRequestNoticeWindow(extensions, loc.Format("format_request.notice_title", FormatRequest.Label(extensions)));
+        PrepareWindow(notice);
         notice.Closed += (_, _) =>
         {
             if (_formatRequestNotice == notice)
@@ -273,6 +491,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
             DataContext = new PresetEditorViewModel(preset, loc),
             Topmost = owner?.Topmost ?? false,
         };
+        PrepareWindow(dialog);
         owner ??= _main ?? MainWindowOrNull();
         if (owner is null || !owner.IsVisible)
         {
@@ -301,6 +520,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
             Topmost = owner?.Topmost ?? false,
             Confirm = (editor, message) => ConfirmAsync(editor, message, destructive: true),
         };
+        PrepareWindow(dialog);
         if (visibleOwner is null)
         {
             var closed = new TaskCompletionSource();
@@ -324,7 +544,22 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
     public async Task ShowUpdateFailedAsync()
     {
         _updateNotice?.Close();
+        _updateProgress?.Close();
         await MessageAsync(_main is { IsVisible: true } main ? main : null, loc["update.failed_alert"]);
+        services.GetRequiredService<UpdateService>().OpenDownloadPage();
+    }
+
+    /// <summary>
+    /// The last run's in-app update (Linux) failed while installing and the installer put the old version back: say so,
+    /// with the log that has the details, then open the website to download the new version there.
+    /// </summary>
+    public async Task ShowUpdateRolledBackAsync(string? logPath)
+    {
+        _updateNotice?.Close();
+        var message = loc["update.rolled_back_alert"];
+        if (!string.IsNullOrWhiteSpace(logPath))
+            message += "\n\n" + loc.Format("update.rolled_back_log", logPath);
+        await MessageAsync(_main is { IsVisible: true } main ? main : null, message);
         services.GetRequiredService<UpdateService>().OpenDownloadPage();
     }
 
@@ -339,6 +574,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ShowInTaskbar = false,
         };
+        PrepareWindow(dialog);
         Motion.Track(dialog);
         var yes = new Button { Content = destructive ? loc["common.delete"] : loc["common.ok"], IsDefault = true };
         yes.Classes.Add("accent");
@@ -363,6 +599,7 @@ public sealed class WindowService(ILocalizer loc, IServiceProvider services, Mem
                 },
             },
         };
+        UiZoom.Track(dialog);
         if (owner is { IsVisible: true })
             return await dialog.ShowDialog<bool>(owner);
 

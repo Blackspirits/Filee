@@ -41,7 +41,8 @@ Out of scope:
 ## How downloads are checked
 
 - **Updates:** an installed copy downloads the new installer from GitHub Releases and checks it against the release's
-  `SHA256SUMS` file before it runs it.
+  `SHA256SUMS` file before it runs it. It also checks that Windows trusts the installer's Authenticode signature and
+  that the publisher who signed the installed Filee signed it; an installer signed by anyone else is discarded.
 - **Engines:** every engine comes from the official location pinned in
   [`engines.json`](src/Filee.Engines/Infrastructure/engines.json), with its SHA-256 and size. A download that doesn't
   match is discarded.
