@@ -160,9 +160,10 @@ public sealed class LocalizationTests : IDisposable
         Assert.Equal(content, File.ReadAllText(path));
     }
 
+    public static IEnumerable<object[]> CatalogLanguages => CliTexts.Languages.Select(language => new object[] { language });
+
     [Theory]
-    [InlineData("en")]
-    [InlineData("pt-PT")]
+    [MemberData(nameof(CatalogLanguages))]
     public void Catalogs_keep_keys_format_items_and_command_switches(string language)
     {
         static Dictionary<string, string> Read(string code)

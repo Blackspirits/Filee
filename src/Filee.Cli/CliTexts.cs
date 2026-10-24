@@ -12,19 +12,18 @@ namespace Filee.Cli;
 internal sealed class CliTexts : ILocalizer
 {
     internal static readonly string[] Languages = ["en", "pt-PT"];
-    private static readonly Dictionary<string, string> EnglishCatalog = Load("en");
-    private static readonly Dictionary<string, string> PortugueseCatalog = Load("pt-PT");
+    private static readonly Dictionary<string, Dictionary<string, string>> Catalogs = Languages.ToDictionary(code => code, Load);
     public static readonly CliTexts English = new("en");
     private readonly Dictionary<string, string> _texts;
 
     public CliTexts(string language)
     {
         Language = language;
-        _texts = language == "pt-PT" ? PortugueseCatalog : EnglishCatalog;
+        _texts = Catalogs.GetValueOrDefault(language, Catalogs["en"]);
     }
 
     public string Language { get; }
-    public string this[string key] => _texts.GetValueOrDefault(key, EnglishCatalog.GetValueOrDefault(key, key));
+    public string this[string key] => _texts.GetValueOrDefault(key, Catalogs["en"].GetValueOrDefault(key, key));
     public string Format(string key, params object[] args) => string.Format(CultureInfo.CurrentCulture, this[key], args);
     public event EventHandler? LanguageChanged { add { } remove { } }
 
