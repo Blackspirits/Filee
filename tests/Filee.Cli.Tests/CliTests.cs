@@ -28,7 +28,8 @@ public sealed class CliTests : IDisposable
     {
         var output = new StringWriter();
         var errors = new StringWriter();
-        var code = await Cli.RunAsync(args, output, errors, TestContext.Current.CancellationToken, () => CliHost.Create(_settings));
+        var code = await Cli.RunAsync(["--language", "en", .. args], output, errors, TestContext.Current.CancellationToken,
+            texts => CliHost.Create(_settings, texts), _settings);
         return (code, output.ToString(), errors.ToString());
     }
 
@@ -58,7 +59,7 @@ public sealed class CliTests : IDisposable
 
         Assert.Equal(Cli.Success, code);
         using var zip = System.IO.Compression.ZipFile.OpenRead(Path.Combine(_folder, "places.zip"));
-        Assert.Equal(["places.cpg", "places.dbf", "places.prj", "places.shp", "places.shx"], zip.Entries.Select(e => e.Name).Order().ToArray());
+        Assert.Equal(["places.cpg", "places.dbf", "places.prj", "places.shp", "places.shx"], [.. zip.Entries.Select(e => e.Name).Order()]);
         Assert.False(File.Exists(Path.Combine(_folder, "places.shp")));
     }
 
@@ -193,8 +194,8 @@ public sealed class CliTests : IDisposable
     {
         using var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
         var output = new StringWriter();
-        var watching = Cli.RunAsync(["watch", _folder, "--to", "jpg", "--settle", "0.2"], TextWriter.Synchronized(output), TextWriter.Null,
-            stop.Token, () => CliHost.Create(_settings));
+        var watching = Cli.RunAsync(["--language", "en", "watch", _folder, "--to", "jpg", "--settle", "0.2"], TextWriter.Synchronized(output), TextWriter.Null,
+            stop.Token, texts => CliHost.Create(_settings, texts), _settings);
 
         await Task.Delay(500, TestContext.Current.CancellationToken);
         Png("arrived.png");
@@ -210,10 +211,10 @@ public sealed class CliTests : IDisposable
     [Fact]
     public async Task A_shared_watch_folder_does_not_reconvert_its_outputs_after_restarting_the_command()
     {
-        var args = new[] { "watch", _folder, "--to", "jpg", "-o", _folder, "--move-originals", "--settle", "0.1" };
+        var args = new[] { "--language", "en", "watch", _folder, "--to", "jpg", "-o", _folder, "--move-originals", "--settle", "0.1" };
         using (var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken))
         {
-            var watching = Cli.RunAsync(args, TextWriter.Null, TextWriter.Null, stop.Token, () => CliHost.Create(_settings));
+            var watching = Cli.RunAsync(args, TextWriter.Null, TextWriter.Null, stop.Token, texts => CliHost.Create(_settings, texts), _settings);
             var input = Path.Combine(_folder, "arrived.webp");
             using (var image = new ImageMagick.MagickImage(ImageMagick.MagickColors.Orange, 40, 30))
                 image.Write(input, ImageMagick.MagickFormat.WebP);
@@ -230,7 +231,7 @@ public sealed class CliTests : IDisposable
 
         using (var stop = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken))
         {
-            var watching = Cli.RunAsync(args, TextWriter.Null, TextWriter.Null, stop.Token, () => CliHost.Create(_settings));
+            var watching = Cli.RunAsync(args, TextWriter.Null, TextWriter.Null, stop.Token, texts => CliHost.Create(_settings, texts), _settings);
             // Let the initial inbox scan settle and the one-second conversion timer run twice.
             await Task.Delay(2200, TestContext.Current.CancellationToken);
             stop.Cancel();
@@ -304,13 +305,12 @@ public sealed class CliTests : IDisposable
     {
         var json = Path.Combine(_folder, "config.json");
         await File.WriteAllTextAsync(json, """{"name": "Filee", "ports": [80, 443]}""", TestContext.Current.CancellationToken);
-
-        var (code, output, errors) = await Run("convert", json, "--to", "yaml");
+        var (code, _, errors) = await Run("convert", json, "--to", "yaml");
 
         Assert.Equal(Cli.Success, code);
         Assert.Equal("", errors);
         Assert.Equal("name: Filee\nports:\n  - 80\n  - 443\n", await File.ReadAllTextAsync(Path.Combine(_folder, "config.yaml"), TestContext.Current.CancellationToken));
-
+        string? output;
         (code, output, _) = await Run("formats", "json");
         Assert.Equal(Cli.Success, code);
         Assert.Contains("yaml, toml, xml", output);

@@ -12,20 +12,21 @@ namespace Filee.Cli;
 
 internal sealed class CliHost : IAsyncDisposable
 {
-    private CliHost(UserDataStore store, ConverterCatalog catalog, JobQueue queue)
+    private CliHost(UserDataStore store, ConverterCatalog catalog, JobQueue queue, ILocalizer texts)
     {
         Store = store;
         Catalog = catalog;
         Queue = queue;
+        Texts = texts;
     }
 
     public UserDataStore Store { get; }
     public ConverterCatalog Catalog { get; }
     public JobQueue Queue { get; }
-    public ILocalizer Texts { get; } = new EnglishTexts();
+    public ILocalizer Texts { get; }
 
     /// <param name="dataDirectory">Settings folder; the app's (%APPDATA%\Filee) when null.</param>
-    public static CliHost Create(string? dataDirectory = null)
+    public static CliHost Create(string? dataDirectory = null, ILocalizer? texts = null)
     {
         var store = new UserDataStore(dataDirectory ?? UserDataStore.DefaultDirectory);
         store.Load();
@@ -39,7 +40,7 @@ internal sealed class CliHost : IAsyncDisposable
         var queue = new JobQueue(catalog, EngineRegistry.FindPdfMerger(converters), combiner: EngineRegistry.FindFileCombiner(converters),
             tiffMerger: EngineRegistry.FindTiffMerger(converters), mediaJoiner: EngineRegistry.FindMediaJoiner(converters),
             moveToTrash: Trash());
-        return new CliHost(store, catalog, queue);
+        return new CliHost(store, catalog, queue, texts ?? CliTexts.English);
     }
 
     /// <summary>The system's Recycle Bin / Trash for "Replace the original", as in the app; none elsewhere.</summary>

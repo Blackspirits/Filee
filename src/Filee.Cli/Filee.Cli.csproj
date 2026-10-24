@@ -22,9 +22,13 @@
     <ProjectReference Include="..\Filee.Platform.MacOS\Filee.Platform.MacOS.csproj" />
   </ItemGroup>
 
-  <!-- Error messages and built-in preset names, in English (the app's translation file). -->
+  <!-- Reuse conversion errors and preset names without depending on the Avalonia app. CLI-only text has its
+       own catalogs, so adding CLI messages does not add unused keys to every UI language. -->
   <ItemGroup>
-    <EmbeddedResource Include="..\Filee.App\Assets\i18n\en.json" LogicalName="Filee.Cli.en.json" />
+    <EmbeddedResource Include="..\Filee.App\Assets\i18n\en.json" LogicalName="Filee.Cli.App.en.json" />
+    <EmbeddedResource Include="..\Filee.App\Assets\i18n\pt-PT.json" LogicalName="Filee.Cli.App.pt-PT.json" />
+    <EmbeddedResource Include="Assets\i18n\*.json" LogicalName="Filee.Cli.Text.%(Filename)%(Extension)" />
+    <Compile Include="..\Filee.App\Services\AppLanguages.cs" Link="AppLanguages.cs" />
   </ItemGroup>
 
   <ItemGroup>

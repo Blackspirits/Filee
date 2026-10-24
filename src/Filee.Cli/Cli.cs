@@ -19,28 +19,30 @@ internal static class Cli
     public const int UsageError = 2;
     public const int NothingToDo = 3;
 
-    /// <param name="createHost">Engines and settings (tests pass a host with a temporary settings folder).</param>
+    /// <param name="createHost">Engines and settings, using the selected texts (tests use a temporary folder).</param>
+    /// <param name="dataDirectory">An isolated profile, or the normal Filee data folder when null.</param>
     public static async Task<int> RunAsync(IReadOnlyList<string> args, TextWriter output, TextWriter errors,
-        CancellationToken cancellationToken, Func<CliHost>? createHost = null)
+        CancellationToken cancellationToken, Func<ILocalizer, CliHost>? createHost = null, string? dataDirectory = null)
     {
         var options = CliOptions.Parse(args);
+        var texts = CliTexts.Create(options.Language, dataDirectory);
         if (options.Error is not null)
         {
-            errors.WriteLine($"filee: {options.Error}");
-            errors.WriteLine("Run 'filee help' for usage.");
+            errors.WriteLine($"filee: {texts.Format(options.Error.Key, options.Error.Arguments)}");
+            errors.WriteLine(texts["cli.run_help"]);
             return UsageError;
         }
         switch (options.Command)
         {
             case "help":
-                output.Write(Help.Text(options.Inputs.FirstOrDefault()));
+                output.Write(Help.Text(options.Inputs.FirstOrDefault(), texts));
                 return Success;
             case "version":
                 output.WriteLine($"filee {Help.Version}");
                 return Success;
         }
 
-        await using var host = (createHost ?? (() => CliHost.Create()))();
+        await using var host = createHost is null ? CliHost.Create(dataDirectory, texts) : createHost(texts);
         return options.Command switch
         {
             "convert" => await ConvertAsync(options, host, output, errors, cancellationToken),
@@ -60,12 +62,12 @@ internal static class Cli
         var missing = new List<string>();
         var files = ExpandInputs(options.Inputs, options.Recursive, missing);
         foreach (var path in missing)
-            errors.WriteLine($"filee: not found: {path}");
+            errors.WriteLine($"filee: {host.Texts.Format("cli.not_found", path)}");
         if (missing.Count > 0)
             return UsageError;
         if (files.Count == 0)
         {
-            errors.WriteLine("filee: no files to convert.");
+            errors.WriteLine($"filee: {host.Texts["cli.no_files"]}");
             return NothingToDo;
         }
 
@@ -73,11 +75,11 @@ internal static class Cli
         var done = job.Files.Count(f => f.State == FileState.Done);
         var failed = job.Files.Count(f => f.State is FileState.Failed or FileState.Cancelled);
         if (options.Json)
-            WriteJson(job, host.Texts, output);
+            WriteJson(job, output);
         else if (!options.Quiet)
             output.WriteLine(failed == 0
-                ? $"Converted {done} of {job.Files.Count} file(s)."
-                : $"Converted {done} of {job.Files.Count} file(s), {failed} failed.");
+                ? host.Texts.Format("cli.converted", done, job.Files.Count)
+                : host.Texts.Format("cli.converted_with_failures", done, job.Files.Count, failed));
         return failed == 0 ? Success : SomeFailed;
     }
 
@@ -104,11 +106,14 @@ internal static class Cli
             settleTime: settle);
         if (!watcher.Start())
         {
-            errors.WriteLine($"filee: {watcher.Error}");
+            var message = Directory.Exists(rule.Folder)
+                ? host.Texts.Format("cli.watch_failed", rule.Folder, watcher.Error ?? "")
+                : host.Texts.Format("cli.folder_not_found", rule.Folder);
+            errors.WriteLine($"filee: {message}");
             return UsageError;
         }
         if (!options.Quiet)
-            output.WriteLine($"Watching {rule.Folder} → {host.Texts.DisplayName(preset)}, saving to {rule.ResolvedOutputFolder}. Press Ctrl+C to stop.");
+            output.WriteLine(host.Texts.Format("cli.watching", rule.Folder, host.Texts.DisplayName(preset), rule.ResolvedOutputFolder));
         try
         {
             await Task.Delay(Timeout.Infinite, cancellationToken);
@@ -123,7 +128,9 @@ internal static class Cli
     private static async Task<ConversionJob> RunJobAsync(IReadOnlyList<string> files, Preset preset, CliHost host, TextWriter? output,
         CancellationToken cancellationToken)
     {
-        var job = new ConversionJob(files, preset, host.Texts.DisplayName(preset));
+        // The job name also expands {preset} in output filename patterns. Preserve the CLI's previous English
+        // expansion even when its console messages are translated, so changing language never renames outputs.
+        var job = new ConversionJob(files, preset, CliTexts.English.DisplayName(preset));
         var printed = new HashSet<FileResult>();
         void Print(object? sender, ConversionJob updated)
         {
@@ -155,18 +162,18 @@ internal static class Cli
         var source = Shorten(file.SourcePath);
         return file.State switch
         {
-            FileState.Done => $"ok    {source} -> {string.Join(", ", file.Outputs.Select(Shorten))}"
+            FileState.Done => texts.Format("cli.file.done", source, string.Join(", ", file.Outputs.Select(Shorten)))
                 + (file.NoticeKey is null ? "" : $" ({Notice(file, texts)})")
-                + (file.MissingFonts.Count == 0 ? "" : $" (missing fonts: {string.Join(", ", file.MissingFonts)})"),
-            FileState.Skipped => $"skip  {source} (the output file already exists)",
-            FileState.Cancelled => $"stop  {source} (cancelled)",
-            _ => $"fail  {source}: {Error(file, texts)}",
+                + (file.MissingFonts.Count == 0 ? "" : $" ({texts.Format("cli.missing_fonts", string.Join(", ", file.MissingFonts))})"),
+            FileState.Skipped => texts.Format("cli.file.skipped", source),
+            FileState.Cancelled => texts.Format("cli.file.cancelled", source),
+            _ => texts.Format("cli.file.failed", source, Error(file, texts)),
         };
     }
 
     private static string Error(FileResult file, ILocalizer texts)
     {
-        var message = file.ErrorKey is null ? "conversion failed" : texts[file.ErrorKey];
+        var message = texts[file.ErrorKey ?? "cli.conversion_failed"];
         return string.IsNullOrWhiteSpace(file.ErrorDetail) ? message : $"{message} ({file.ErrorDetail})";
     }
 
@@ -179,13 +186,16 @@ internal static class Cli
         return relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative) ? path : relative;
     }
 
-    private static void WriteJson(ConversionJob job, ILocalizer texts, TextWriter output)
+    private static void WriteJson(ConversionJob job, TextWriter output)
     {
+        // JSON is a scripting contract. Keep even its preset names, errors and notices in English, as before
+        // localization; language selection affects human-readable stdout/stderr only.
+        var texts = CliTexts.English;
         using var stream = new MemoryStream();
         using (var json = new Utf8JsonWriter(stream, new JsonWriterOptions { Indented = true }))
         {
             json.WriteStartObject();
-            json.WriteString("preset", job.PresetDisplayName);
+            json.WriteString("preset", texts.DisplayName(job.Preset));
             json.WriteString("target", job.Preset.TargetFormat);
             json.WriteNumber("converted", job.Files.Count(f => f.State == FileState.Done));
             json.WriteNumber("skipped", job.Files.Count(f => f.State == FileState.Skipped));
@@ -227,12 +237,12 @@ internal static class Cli
         {
             if (FindFormat(options.To) is not { } format)
             {
-                errors.WriteLine($"filee: unknown format '{options.To}'. Run 'filee formats' for the list.");
+                errors.WriteLine($"filee: {host.Texts.Format("cli.unknown_target", options.To)}");
                 return null;
             }
             if (!format.Writable)
             {
-                errors.WriteLine($"filee: Filee reads {format.DisplayName} but can't write it.");
+                errors.WriteLine($"filee: {host.Texts.Format("cli.cannot_write", format.DisplayName)}");
                 return null;
             }
             preset = new Preset { TargetFormat = format.Id };
@@ -242,13 +252,15 @@ internal static class Cli
             var wanted = options.Preset!;
             Preset? Find(IEnumerable<Preset> presets) =>
                 presets.FirstOrDefault(p => string.Equals(p.Id, wanted, StringComparison.OrdinalIgnoreCase))
-                ?? presets.FirstOrDefault(p => string.Equals(host.Texts.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase));
+                ?? presets.FirstOrDefault(p => string.Equals(host.Texts.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase))
+                // Existing scripts may use an English built-in name even when the app now selects Portuguese.
+                ?? presets.FirstOrDefault(p => string.Equals(CliTexts.English.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase));
             // Conversions first: a group of the same name (say a "Rotate" group next to your own "Rotate" preset)
             // must not hide one. A group is only found to say what it holds.
             var found = Find(host.Store.Presets.Where(p => !p.IsGroup && !p.IsTool)) ?? Find(host.Store.Presets);
             if (found is null)
             {
-                errors.WriteLine($"filee: no preset '{wanted}'. Run 'filee presets' for the list.");
+                errors.WriteLine($"filee: {host.Texts.Format("cli.no_preset", wanted)}");
                 return null;
             }
             if (found.IsGroup)
@@ -256,13 +268,13 @@ internal static class Cli
                 // A donut group converts nothing; name what it holds so the right one is easy to pick.
                 var members = found.SubPresetIds.Select(host.Store.FindConversion).OfType<Preset>().Select(p => p.Id).ToList();
                 errors.WriteLine(members.Count > 0
-                    ? $"filee: '{wanted}' is a group on the donut, not a conversion. Use one of: {string.Join(", ", members)}"
-                    : $"filee: '{wanted}' is a group on the donut, not a conversion, and has no presets left. Run 'filee presets' for the list.");
+                    ? $"filee: {host.Texts.Format("cli.preset_group", wanted, string.Join(", ", members))}"
+                    : $"filee: {host.Texts.Format("cli.preset_group_empty", wanted)}");
                 return null;
             }
             if (found.IsTool)
             {
-                errors.WriteLine($"filee: '{wanted}' is an interactive tool, not a conversion.");
+                errors.WriteLine($"filee: {host.Texts.Format("cli.preset_tool", wanted)}");
                 return null;
             }
             preset = found.Clone();
@@ -328,7 +340,7 @@ internal static class Cli
         {
             if (FindFormat(name) is not { } from)
             {
-                errors.WriteLine($"filee: unknown format '{name}'.");
+                errors.WriteLine($"filee: {host.Texts.Format("cli.unknown_format", name)}");
                 return UsageError;
             }
             var installed = host.Catalog.CreatePlanner();
@@ -339,31 +351,32 @@ internal static class Cli
             var targets = FormatRegistry.Known.Where(t => t.Writable && t.Id != from.Id && t.Id != FormatRegistry.Folder).ToList();
             var now = targets.Where(t => installed.CanConvert(from.Id, t.Id)).Select(t => t.Id).ToList();
             var later = targets.Where(t => !now.Contains(t.Id) && everything.CanConvert(from.Id, t.Id)).Select(t => t.Id).ToList();
-            output.WriteLine($"{from.DisplayName} ({string.Join(", ", from.Extensions)}) converts to:");
-            output.WriteLine(now.Count > 0 ? "  " + string.Join(", ", now) : "  (nothing with the engines installed now)");
+            output.WriteLine(host.Texts.Format("cli.converts_to", from.DisplayName, string.Join(", ", from.Extensions)));
+            output.WriteLine(now.Count > 0 ? "  " + string.Join(", ", now) : "  " + host.Texts["cli.no_engines"]);
             if (later.Count > 0)
-                output.WriteLine($"With optional engines (install them in Filee, Settings → Engines):{Environment.NewLine}  {string.Join(", ", later)}");
+                output.WriteLine($"{host.Texts["cli.optional_engines"]}{Environment.NewLine}  {string.Join(", ", later)}");
             return Success;
         }
 
         foreach (var group in FormatRegistry.Known.Where(f => f.Id != FormatRegistry.Folder).GroupBy(f => f.Category))
         {
-            output.WriteLine($"{group.Key}:");
+            var category = host.Texts.Language == "en" ? group.Key.ToString() : host.Texts[$"format.category.{group.Key}"];
+            output.WriteLine($"{category}:");
             foreach (var format in group)
-                output.WriteLine($"  {format.Id,-10} {format.DisplayName}{(format.Writable ? "" : " (read only)")}  .{string.Join(" .", format.Extensions)}");
+                output.WriteLine($"  {format.Id,-10} {format.DisplayName}{(format.Writable ? "" : " " + host.Texts["cli.read_only"])}  .{string.Join(" .", format.Extensions)}");
         }
         output.WriteLine();
-        output.WriteLine("Run 'filee formats <format>' to see what a format converts to.");
+        output.WriteLine(host.Texts["cli.formats_hint"]);
         return Success;
     }
 
     private static int ListPresets(CliHost host, TextWriter output)
     {
-        output.WriteLine($"{"ID",-24} {"NAME",-28} TARGET");
+        output.WriteLine($"{host.Texts["cli.column.id"],-24} {host.Texts["cli.column.name"],-28} {host.Texts["cli.column.target"]}");
         foreach (var preset in host.Store.Presets.Where(p => !p.IsGroup && !p.IsTool))
             output.WriteLine($"{preset.Id,-24} {host.Texts.DisplayName(preset),-28} {preset.TargetFormat}");
         output.WriteLine();
-        output.WriteLine("Use one with: filee convert <files> --preset <id or name>");
+        output.WriteLine(host.Texts["cli.presets_hint"]);
         return Success;
     }
 }

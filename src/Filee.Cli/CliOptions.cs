@@ -4,6 +4,9 @@ using Filee.Core.Presets;
 
 namespace Filee.Cli;
 
+/// <summary>An argument error that can be translated after the language option has been parsed.</summary>
+internal sealed record CliError(string Key, params object[] Arguments);
+
 /// <summary>A parsed command line. <see cref="Error"/> is set when the arguments are wrong.</summary>
 internal sealed record CliOptions
 {
@@ -22,41 +25,59 @@ internal sealed record CliOptions
 
     public bool Zip { get; set; }
     public double? SettleSeconds { get; set; }
-    public string? Error { get; set; }
+    public string? Language { get; set; }
+    public CliError? Error { get; set; }
 
     public static readonly string[] Commands = ["convert", "watch", "formats", "presets", "help", "version"];
 
     public static CliOptions Parse(IReadOnlyList<string> args)
     {
-        if (args.Count == 0)
-            return new CliOptions { Command = "help" };
-        var first = args[0].ToLowerInvariant();
+        var options = new CliOptions();
+        var start = 0;
+        while (start < args.Count && args[start].Equals("--language", StringComparison.OrdinalIgnoreCase))
+        {
+            if (start + 1 == args.Count)
+            {
+                options.Error = new("cli.args.needs_value", args[start]);
+                return options;
+            }
+            options.Language = args[start + 1];
+            start += 2;
+        }
+        if (start == args.Count)
+            return ValidateLanguage(options);
+        var first = args[start].ToLowerInvariant();
         var command = first switch
         {
             "-h" or "--help" or "/?" => "help",
             "-v" or "--version" => "version",
             _ => first,
         };
-        var options = new CliOptions { Command = command };
+        options = options with { Command = command };
         if (!Commands.Contains(command))
-        {
-            options.Error = $"Unknown command '{args[0]}'.";
-            return options;
-        }
+            options.Error = new("cli.args.unknown_command", args[start]);
 
-        for (var i = 1; i < args.Count; i++)
+        var helpRequested = false;
+        for (var i = start + 1; i < args.Count; i++)
         {
             var arg = args[i];
+            // Help used to stop parsing here. Still ignore trailing conversion arguments, but allow the
+            // language choice after --help too (filee convert --help --language pt-PT).
+            if (helpRequested && !arg.Equals("--language", StringComparison.OrdinalIgnoreCase))
+                continue;
             string? Value()
             {
                 if (i + 1 < args.Count)
                     return args[++i];
-                options.Error ??= $"{arg} needs a value.";
+                options.Error ??= new("cli.args.needs_value", arg);
                 return null;
             }
 
             switch (arg.ToLowerInvariant())
             {
+                case "--language":
+                    options.Language = Value() ?? options.Language;
+                    break;
                 case "-t" or "--to":
                     options.To = Value();
                     break;
@@ -76,7 +97,7 @@ internal sealed record CliOptions
                         if (int.TryParse(quality, out var q) && q is >= 1 and <= 100)
                             options.Quality = q;
                         else
-                            options.Error ??= "--quality must be a number from 1 to 100.";
+                            options.Error ??= new("cli.args.quality");
                     }
                     break;
                 case "--overwrite":
@@ -107,15 +128,17 @@ internal sealed record CliOptions
                         if (double.TryParse(settle, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var s) && s >= 0)
                             options.SettleSeconds = s;
                         else
-                            options.Error ??= "--settle must be a number of seconds.";
+                            options.Error ??= new("cli.args.settle");
                     }
                     break;
                 case "-h" or "--help":
                     options.Inputs.Insert(0, options.Command);
-                    return options with { Command = "help" };
+                    options = options with { Command = "help" };
+                    helpRequested = true;
+                    break;
                 default:
                     if (arg.StartsWith("--", StringComparison.Ordinal) || (arg.StartsWith('-') && arg.Length == 2))
-                        options.Error ??= $"Unknown option '{arg}'.";
+                        options.Error ??= new("cli.args.unknown_option", arg);
                     else
                         options.Inputs.Add(arg);
                     break;
@@ -124,11 +147,19 @@ internal sealed record CliOptions
 
         options.Error ??= options.Command switch
         {
-            "convert" when options.Inputs.Count == 0 => "Give at least one file or folder to convert.",
-            "convert" or "watch" when options.To is null == (options.Preset is null) => "Use either --to <format> or --preset <preset>.",
-            "watch" when options.Inputs.Count != 1 => "Give exactly one folder to watch.",
+            "convert" when options.Inputs.Count == 0 => new("cli.args.inputs"),
+            "convert" or "watch" when options.To is null == (options.Preset is null) => new("cli.args.target"),
+            "watch" when options.Inputs.Count != 1 => new("cli.args.watch_folder"),
             _ => null,
         };
+        return ValidateLanguage(options);
+    }
+
+    private static CliOptions ValidateLanguage(CliOptions options)
+    {
+        if (options.Language is not null && !options.Language.Equals("auto", StringComparison.OrdinalIgnoreCase) &&
+            !CliTexts.Languages.Contains(options.Language, StringComparer.OrdinalIgnoreCase))
+            options.Error ??= new("cli.args.language", options.Language);
         return options;
     }
 }
