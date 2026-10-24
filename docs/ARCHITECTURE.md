@@ -296,6 +296,13 @@ installed yet; the slides introduce the installed one. The demo animations are r
   pipeline as the app without any UI (`CliHost`: `UserDataStore`, `EngineRegistry`, `ConverterCatalog`, `JobQueue`)
   and reads the app's presets and engine order. It is published into the app folder, so both share one runtime and
   the bundled engines; its name can't be `filee.exe` next to `Filee.exe` on a case-insensitive file system.
+- `CliTexts` combines CLI-only help/messages with the app's conversion-error and preset-name catalogs. An
+  explicit `--language` wins over the saved app language; `auto` follows the OS display language. Unsupported
+  CLI languages use English, including pt-BR until it has its own CLI translation. The settings-language read
+  happens before parsing errors/help are displayed and never loads/migrates the full store. It does not change
+  process cultures. Human output uses the selected language; JSON, IDs, exit codes and `{preset}` filename
+  expansion retain their previous English behavior. English built-in preset names remain accepted alongside
+  localized names and stable IDs, so existing command lines keep finding their presets.
 - `Filee.Core/Watching/FolderWatcher` watches one `WatchRule` with a `FileSystemWatcher` and converts a file once it
   has kept its size and time for a moment and opens without sharing (downloads and copies in progress are skipped).
   Temporary files, unknown formats and dedicated output and originals folders are ignored. A rule may also write

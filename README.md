@@ -180,6 +180,10 @@ filee watch D:\Inbox --to pdf --move-originals
 
 Every command and option: [filee.sh/cli](https://filee.sh/cli/) or `filee help`.
 
+CLI text follows the app's saved language, with English fallback for languages not yet translated.
+Use `filee --language pt-PT help` for European Portuguese or `--language en` for English; this does not change
+your saved language. JSON output remains in English for scripts. [Portuguese CLI guide](docs/CLI.pt-PT.md).
+
 ## Development
 
 Build with the .NET 10 SDK on Windows, macOS or Linux:

@@ -32,8 +32,7 @@ The UI language changes `CurrentUICulture`; number and date formatting continue 
 `CurrentCulture`. Do not change machine-readable filenames, pattern tokens or command-line switches when translating.
 
 The Windows installer embeds the same JSON files, including the `installer.*` keys. Test the language with
-`Filee.Setup.Tests` as well, and extend `SetupTexts.Resolve` when a region needs a distinct catalog. The CLI
-currently has a separate, English-only text provider.
+`Filee.Setup.Tests` as well, and extend `SetupTexts.Resolve` when a region needs a distinct catalog.
 
 Native macOS text also needs `<language>.lproj/ServicesMenu.strings` and, for permission explanations,
 `InfoPlist.strings`, plus a `CFBundleLocalizations` entry in `installer/macos/Info.plist`. Keep the English service
@@ -68,3 +67,23 @@ Add the key to **all** language files in the same pull request. In XAML use
 Set `FILEE_LOCALIZATION_SCREENSHOTS=1` for PNG captures in `PortugueseRenderTests`. Geometry assertions
 always run. Dispose directly created `MainWindowViewModel` fixtures: production `WindowService` owns their lifetime,
 but a window constructed directly in a test does not automatically unsubscribe its model.
+
+## Command-line translations
+
+The CLI has its own embedded catalogs in `src/Filee.Cli/Assets/i18n`, currently `en` and `pt-PT`. Its help,
+argument errors and console summaries belong there, not in every UI catalog. Conversion errors, notices,
+format categories and built-in preset names reuse the app's existing translations, embedded by `Filee.Cli.csproj`.
+
+To add a CLI language, copy every key from its English catalog, embed the matching app catalog, add the code
+to `CliTexts.Languages`, and extend `CliTexts.Resolve`. The CLI shares `AppLanguages.PortugueseVariant` with
+App/Setup, but falls back to English for languages without CLI text; it never substitutes pt-PT for pt-BR.
+The command's `--language auto|en|pt-PT` overrides the saved app language without writing it. `auto` uses the
+OS display language; human-readable numbers still follow `CurrentCulture`. CLI numeric syntax stays invariant
+(`--settle 1.5`, not `1,5`). Help/version/argument errors do not initialize engines or migrate the settings.
+
+Run `dotnet test tests/Filee.Cli.Tests`. Its localization cases check key/placeholder/switch parity, read-only
+language selection, actual conversions, English preset-name compatibility, watch cancellation and stable JSON.
+Translate descriptive metavariables (`<folder>` → `<pasta>`), but keep commands, switches, format/preset IDs,
+example filenames, `converted`/`originals` output directories and filename-pattern tokens unchanged. JSON keys,
+states and descriptive text stay in English, as before CLI localization. The `{preset}` filename token also
+keeps its previous English expansion (custom preset names remain as saved).
