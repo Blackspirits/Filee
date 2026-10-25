@@ -19,4 +19,4 @@ Isto não certifica a acessibilidade da aplicação inteira. Os controlos, a cor
 
 O `theme.json` pessoal continua a ter prioridade sobre as cores da paleta e não deve ser reescrito. Ao escolher Filee, regressa-se à base original, mantendo os overrides explícitos desse ficheiro.
 
-O passo seguinte é apresentar esta proposta ao mantenedor e confirmar o âmbito antes de implementar o seletor. Os exemplos e as capturas já estão preparados; não foi alterado código de execução, nem foram modificados catálogos de tradução.
+A proposta foi apresentada ao mantenedor no [pedido #569](https://github.com/KnifeLemon/Filee/issues/569). Falta confirmar o âmbito antes de implementar o seletor. Os exemplos e as capturas já estão preparados; não foi alterado código de execução, nem foram modificados catálogos de tradução.

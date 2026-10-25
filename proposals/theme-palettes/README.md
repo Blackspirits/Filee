@@ -2,6 +2,8 @@
 
 Status: **proposal and review examples only**. The application, settings schema and language catalogs are unchanged. Based on main `1bf94e71` (Filee 2.1.0).
 
+Maintainer discussion: [KnifeLemon/Filee #569](https://github.com/KnifeLemon/Filee/issues/569). The picker awaits agreement on scope before implementation.
+
 Filee already supports nine surface/text/status colours through [`theme.json`](../../docs/CUSTOM-THEMES.md). The proposal is to make a small set of those palettes available in **Settings → Theme**, alongside the existing Filee appearance.
 
 ## Suggested interaction
