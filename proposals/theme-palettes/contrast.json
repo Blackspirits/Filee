@@ -1,0 +1,862 @@
+{
+  "checks": 105,
+  "minimum": 4.5106,
+  "adjustments": [
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "role": "danger",
+      "source": "#D20F39",
+      "adapted": "#C50E36"
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "role": "success",
+      "source": "#40A02B",
+      "adapted": "#2D701E"
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "role": "warning",
+      "source": "#DF8E1D",
+      "adapted": "#8A5812"
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "role": "danger",
+      "source": "#BF616A",
+      "adapted": "#954C53"
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "role": "success",
+      "source": "#A3BE8C",
+      "adapted": "#56654A"
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "role": "warning",
+      "source": "#EBCB8B",
+      "adapted": "#6E5F41"
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "role": "danger",
+      "source": "#BF616A",
+      "adapted": "#DFB0B4"
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "role": "success",
+      "source": "#A3BE8C",
+      "adapted": "#ABC496"
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "role": "danger",
+      "source": "#DE5735",
+      "adapted": "#B2462A"
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "role": "success",
+      "source": "#089108",
+      "adapted": "#077A07"
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "role": "warning",
+      "source": "#A39514",
+      "adapted": "#746A0E"
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "role": "textSecondary",
+      "source": "#6272A4",
+      "adapted": "#96A1C2"
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "role": "danger",
+      "source": "#DE5735",
+      "adapted": "#E7866E"
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "role": "success",
+      "source": "#089108",
+      "adapted": "#57B457"
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "role": "warning",
+      "source": "#A39514",
+      "adapted": "#AFA333"
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "role": "textSecondary",
+      "source": "#90908A",
+      "adapted": "#AEAEAA"
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "role": "danger",
+      "source": "#F92672",
+      "adapted": "#FC8AB3"
+    }
+  ],
+  "ratios": [
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 6.566
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 7.062
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 6.0352
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 5.1414
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 5.5298
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 4.7258
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 4.9472
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 5.3209
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 4.5473
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 5.0077
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 5.386
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 4.6029
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 4.9541
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 5.3283
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 4.5536
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 12.139
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 11.3411
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 8.6935
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 9.9141
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 9.2625
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 7.1001
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 7.5818
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 7.0835
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 5.4298
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 11.8071
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 11.031
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 8.4557
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 13.8149
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 12.9069
+    },
+    {
+      "palette": "catppuccin",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 9.8937
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 10.8359
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 10.2566
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 9.2452
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 6.4006
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 6.0584
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 5.461
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 5.3016
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 5.0182
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 4.5234
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 5.4289
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 5.1386
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 4.6319
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 5.3964
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 5.1079
+    },
+    {
+      "palette": "nord",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 4.6043
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 10.8359
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 8.7296
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 7.4852
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 9.2452
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 7.4482
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 6.3864
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 6.5462
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 5.2738
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 4.522
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 6.5826
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 5.3031
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 4.5471
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 7.9979
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 6.4433
+    },
+    {
+      "palette": "nord",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 5.5248
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 15.8947
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 13.9848
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 13.5692
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 5.5637
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 4.8952
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 4.7497
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 5.3256
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 4.6857
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 4.5464
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 5.3348
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 4.6938
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 4.5543
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 5.3143
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 4.6758
+    },
+    {
+      "palette": "dracula",
+      "mode": "light",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 4.5368
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 14.814
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 13.3591
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 11.0619
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 6.1464
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 5.5427
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 4.5896
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 6.0405
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 5.4473
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 4.5106
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 6.0694
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 5.4733
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 4.5321
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 6.098
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 5.4992
+    },
+    {
+      "palette": "dracula",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 4.5535
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "page",
+      "ratio": 15.537
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surface",
+      "ratio": 13.9434
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "text",
+      "background": "surfaceAlt",
+      "ratio": 9.4409
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "page",
+      "ratio": 7.4407
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surface",
+      "ratio": 6.6776
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "textSecondary",
+      "background": "surfaceAlt",
+      "ratio": 4.5213
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "page",
+      "ratio": 7.4335
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surface",
+      "ratio": 6.6711
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "danger",
+      "background": "surfaceAlt",
+      "ratio": 4.5169
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "page",
+      "ratio": 10.678
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surface",
+      "ratio": 9.5828
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "success",
+      "background": "surfaceAlt",
+      "ratio": 6.4884
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "page",
+      "ratio": 11.6323
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surface",
+      "ratio": 10.4392
+    },
+    {
+      "palette": "monokai",
+      "mode": "dark",
+      "foreground": "warning",
+      "background": "surfaceAlt",
+      "ratio": 7.0683
+    }
+  ]
+}

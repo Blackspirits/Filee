@@ -1,0 +1,67 @@
+[
+  {
+    "id": "catppuccin",
+    "repository": "catppuccin/palette",
+    "commit": "07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd",
+    "palette": {
+      "url": "https://raw.githubusercontent.com/catppuccin/palette/07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd/palette.json",
+      "sha256": "4bc114bb6b3c9a9c9e156564aa84625aef32c5da514d9dd431cf1fcad433a05f",
+      "local": "artifacts/theme-proposal/sources/catppuccin.json"
+    },
+    "license": {
+      "url": "https://raw.githubusercontent.com/catppuccin/palette/07d02aa110ef9eb7e7427afca5c73ba9cf7f8ebd/LICENSE",
+      "sha256": "814096d2c34cc216c624738a49356f32b7237733b4f7edb0685f4e50ef5074ba",
+      "local": "proposals/theme-palettes/licenses/catppuccin.txt"
+    }
+  },
+  {
+    "id": "nord",
+    "repository": "nordtheme/nord",
+    "commit": "1cef71605416a222e57225b544540ce0fcec18d4",
+    "license": {
+      "url": "https://raw.githubusercontent.com/nordtheme/nord/1cef71605416a222e57225b544540ce0fcec18d4/license",
+      "sha256": "25ac8188d670bd2ad2ce2f4f55ab88573010ee9f7a4502543cb1eea1e2274f8a",
+      "local": "proposals/theme-palettes/licenses/nord.txt"
+    },
+    "palette": {
+      "url": "https://raw.githubusercontent.com/nordtheme/nord/1cef71605416a222e57225b544540ce0fcec18d4/src/nord.scss",
+      "sha256": "03d9dd98ff983308d10a9a4820c870e9eed7183a2d8aa689e3041e6d7cf1511b",
+      "local": "artifacts/theme-proposal/sources/nord.scss"
+    }
+  },
+  {
+    "id": "dracula",
+    "repository": "dracula/draculatheme.com",
+    "commit": "88fbf0b34e53d8f785546da3c2246b7edb73931e",
+    "palette": {
+      "url": "https://raw.githubusercontent.com/dracula/draculatheme.com/88fbf0b34e53d8f785546da3c2246b7edb73931e/content/spec.mdx",
+      "sha256": "36c0a451e0106d4a651c8c6796b66128fe4053cc5408bad9d9f81cb78f14839e",
+      "local": "artifacts/theme-proposal/sources/dracula.mdx"
+    }
+  },
+  {
+    "id": "dracula-notice",
+    "repository": "dracula/template",
+    "commit": "d36c038a7df2e0bd7567f539e7a5816df8145057",
+    "license": {
+      "url": "https://raw.githubusercontent.com/dracula/template/d36c038a7df2e0bd7567f539e7a5816df8145057/LICENSE",
+      "sha256": "2d58b85d277b33f4866b1c3d11e0f43c72e0767ac4bfd70effb24ceda98abe69",
+      "local": "proposals/theme-palettes/licenses/dracula-notice.txt"
+    }
+  },
+  {
+    "id": "monokai",
+    "repository": "microsoft/vscode",
+    "commit": "a383e08626828ceb9c32f45f4a2940070a2f27f1",
+    "palette": {
+      "url": "https://raw.githubusercontent.com/microsoft/vscode/a383e08626828ceb9c32f45f4a2940070a2f27f1/extensions/theme-monokai/themes/monokai-color-theme.json",
+      "sha256": "5681bcdc2e8f2994a41233bfdd1b02c2cfd90da5c6a4f5ebd4c8f42ef90d1b5f",
+      "local": "artifacts/theme-proposal/sources/monokai.json"
+    },
+    "license": {
+      "url": "https://raw.githubusercontent.com/microsoft/vscode/a383e08626828ceb9c32f45f4a2940070a2f27f1/LICENSE.txt",
+      "sha256": "9480271317925265e806a9a196aaa33410a962fa9d4d1e248a4a5187bc8c9df9",
+      "local": "proposals/theme-palettes/licenses/monokai.txt"
+    }
+  }
+]
