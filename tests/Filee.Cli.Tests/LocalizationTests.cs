@@ -317,6 +317,76 @@ public sealed class LocalizationTests : IDisposable
     }
 
     [Theory]
+    [InlineData("en")]
+    [InlineData("pt-PT")]
+    public async Task A_saved_custom_name_wins_over_a_new_translated_builtin_alias(string language)
+    {
+        var store = new UserDataStore(SettingsDirectory);
+        store.Load();
+        store.Presets.Add(new Preset { Id = "my-half", Name = "Metade do tamanho", TargetFormat = "webp" });
+        store.SaveLibrary();
+        var input = Png("full-size.png");
+        var output = new StringWriter();
+
+        Assert.Equal(Cli.Success, await Run(["--language", language, "convert", input, "--preset", "Metade do tamanho", "--json"], output));
+
+        using var json = JsonDocument.Parse(output.ToString());
+        Assert.Equal("webp", json.RootElement.GetProperty("target").GetString());
+        Assert.Equal("Metade do tamanho", json.RootElement.GetProperty("preset").GetString());
+        using var image = new ImageMagick.MagickImage(json.RootElement.GetProperty("files")[0].GetProperty("outputs")[0].GetString()!);
+        Assert.Equal(ImageMagick.MagickFormat.WebP, image.Format);
+        Assert.Equal(40u, image.Width);
+        Assert.Equal(30u, image.Height);
+    }
+
+    [Theory]
+    [InlineData(PresetKind.Group, false)]
+    [InlineData(PresetKind.Group, true)]
+    [InlineData(PresetKind.Tool, false)]
+    [InlineData(PresetKind.Tool, true)]
+    public async Task A_saved_group_or_tool_match_is_not_hidden_by_a_translated_conversion_alias(PresetKind kind, bool byId)
+    {
+        var store = new UserDataStore(SettingsDirectory);
+        store.Load();
+        store.Presets.Add(new Preset
+        {
+            Id = byId ? "Metade do tamanho" : "my-special-preset",
+            Name = byId ? "My saved preset" : "Metade do tamanho",
+            Kind = kind,
+        });
+        store.SaveLibrary();
+        var input = Png("unchanged.png");
+        var output = new StringWriter();
+        var errors = new StringWriter();
+
+        var code = await Run(["--language", "pt-PT", "convert", input, "--preset", "Metade do tamanho"], output, errors);
+
+        Assert.Equal(Cli.UsageError, code);
+        Assert.Equal("", output.ToString());
+        Assert.Contains(kind == PresetKind.Group ? "é um grupo da barra circular" : "é uma ferramenta interativa", errors.ToString());
+        Assert.Equal([input], Directory.GetFiles(_folder, "*.png"));
+    }
+
+    [Fact]
+    public async Task An_existing_id_still_wins_over_a_saved_name_that_is_the_same_text()
+    {
+        var store = new UserDataStore(SettingsDirectory);
+        store.Load();
+        store.Presets.Add(new Preset { Id = "my-custom-half", Name = "half-size", TargetFormat = "webp" });
+        store.SaveLibrary();
+        var input = Png("original.png");
+        var output = new StringWriter();
+
+        Assert.Equal(Cli.Success, await Run(["--language", "pt-PT", "convert", input, "--preset", "half-size", "--json"], output));
+
+        using var json = JsonDocument.Parse(output.ToString());
+        Assert.Equal(BuiltInData.SameAsSource, json.RootElement.GetProperty("target").GetString());
+        using var image = new ImageMagick.MagickImage(json.RootElement.GetProperty("files")[0].GetProperty("outputs")[0].GetString()!);
+        Assert.Equal(20u, image.Width);
+        Assert.Equal(15u, image.Height);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Json_is_identical_in_both_languages_including_English_errors_and_names(bool fail)

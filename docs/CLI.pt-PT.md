@@ -39,7 +39,10 @@ Na ajuda, `<ficheiros>`, `<pasta>` e `<formato>` são indicações do que deves 
 literalmente. Por exemplo, substitui `<formato>` por `jpg`. Usa aspas nos caminhos com espaços.
 
 Com `--preset`, podes indicar o ID, o nome traduzido ou o nome inglês de uma predefinição de origem.
-Os nomes personalizados mantêm-se como os guardaste. Prefere os IDs em scripts, pois são estáveis:
+Os nomes personalizados mantêm-se como os guardaste. Prefere os IDs em scripts, pois são estáveis.
+
+Se um nome traduzido coincidir com o nome de uma predefinição tua, a tua predefinição mantém a prioridade.
+Mudar o idioma não altera a correspondência que o comando já encontrava.
 
 ```text
 filee presets --language pt-PT

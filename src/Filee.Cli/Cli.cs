@@ -252,12 +252,15 @@ internal static class Cli
             var wanted = options.Preset!;
             Preset? Find(IEnumerable<Preset> presets) =>
                 presets.FirstOrDefault(p => string.Equals(p.Id, wanted, StringComparison.OrdinalIgnoreCase))
-                ?? presets.FirstOrDefault(p => string.Equals(host.Texts.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase))
-                // Existing scripts may use an English built-in name even when the app now selects Portuguese.
                 ?? presets.FirstOrDefault(p => string.Equals(CliTexts.English.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase));
             // Conversions first: a group of the same name (say a "Rotate" group next to your own "Rotate" preset)
             // must not hide one. A group is only found to say what it holds.
-            var found = Find(host.Store.Presets.Where(p => !p.IsGroup && !p.IsTool)) ?? Find(host.Store.Presets);
+            var conversions = host.Store.Presets.Where(p => !p.IsGroup && !p.IsTool);
+            // Preserve all previous ID/English/custom-name matches, including a saved group or tool that must
+            // be refused. Translated aliases are new and must not hide anything a command already selected.
+            var found = Find(conversions) ?? Find(host.Store.Presets)
+                ?? conversions.FirstOrDefault(p => string.Equals(host.Texts.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase))
+                ?? host.Store.Presets.FirstOrDefault(p => string.Equals(host.Texts.DisplayName(p), wanted, StringComparison.OrdinalIgnoreCase));
             if (found is null)
             {
                 errors.WriteLine($"filee: {host.Texts.Format("cli.no_preset", wanted)}");

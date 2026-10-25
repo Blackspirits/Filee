@@ -302,7 +302,9 @@ installed yet; the slides introduce the installed one. The demo animations are r
   happens before parsing errors/help are displayed and never loads/migrates the full store. It does not change
   process cultures. Human output uses the selected language; JSON, IDs, exit codes and `{preset}` filename
   expansion retain their previous English behavior. English built-in preset names remain accepted alongside
-  localized names and stable IDs, so existing command lines keep finding their presets.
+  localized names and stable IDs, so existing command lines keep finding their presets. All previous ID and
+  English/custom-name lookups run before translated aliases, including group/tool matches that must be refused;
+  a translated built-in name must never mask a user's saved choice.
 - `Filee.Core/Watching/FolderWatcher` watches one `WatchRule` with a `FileSystemWatcher` and converts a file once it
   has kept its size and time for a moment and opens without sharing (downloads and copies in progress are skipped).
   Temporary files, unknown formats and dedicated output and originals folders are ignored. A rule may also write
